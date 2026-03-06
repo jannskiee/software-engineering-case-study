@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch } from "lucide-react"
 
 interface SidebarProps {
@@ -119,15 +120,13 @@ export function Sidebar({ user }: SidebarProps) {
                     </p>
                 </div>
 
-                <form action="/api/auth/logout" method="POST">
-                    <button
-                        type="submit"
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600/10 px-4 py-2.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600/20 hover:text-white"
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Sign Out
-                    </button>
-                </form>
+                <button
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600/10 px-4 py-2.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600/20 hover:text-white"
+                >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                </button>
             </div>
         </aside>
     )

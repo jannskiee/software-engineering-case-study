@@ -1,6 +1,6 @@
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { verifyToken } from "@/lib/auth"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Sidebar } from "@/components/layout/Sidebar"
 
 export default async function DashboardLayout({
@@ -8,22 +8,15 @@ export default async function DashboardLayout({
 }: {
     children: React.ReactNode
 }) {
-    const cookieStore = cookies()
-    const sessionCookie = cookieStore.get("session")
+    const session = await getServerSession(authOptions)
 
-    if (!sessionCookie) {
-        redirect("/login")
-    }
-
-    const payload = await verifyToken(sessionCookie.value)
-
-    if (!payload || !payload.email || !payload.role) {
+    if (!session || !session.user) {
         redirect("/login")
     }
 
     const user = {
-        email: payload.email as string,
-        role: payload.role as string,
+        email: session.user.email as string,
+        role: (session.user as any).role as string,
     }
 
     return (

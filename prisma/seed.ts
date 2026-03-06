@@ -16,14 +16,14 @@ async function main() {
     }
 
     const superAdmin = await prisma.user.upsert({
-        where: { email: 'superadmin@dlsud.edu.ph' },
+        where: { email: 'superadmin' },
         update: {
             password: hashedPassword,
             role: 'SUPERADMIN',
             verified: true,
         },
         create: {
-            email: 'superadmin@dlsud.edu.ph',
+            email: 'superadmin',
             password: hashedPassword,
             role: 'SUPERADMIN',
             verified: true,

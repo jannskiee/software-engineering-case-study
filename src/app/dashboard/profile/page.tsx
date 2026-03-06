@@ -1,17 +1,16 @@
-import { cookies } from "next/headers"
-import { verifyToken } from "@/lib/auth"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { User, Mail, ShieldAlert, KeyRound } from "lucide-react"
 
 export default async function ProfilePage() {
-    const cookieStore = cookies()
-    const sessionCookie = cookieStore.get("session")
-    const payload = sessionCookie ? await verifyToken(sessionCookie.value) : null
+    const session = await getServerSession(authOptions)
 
     const user = {
-        email: payload?.email as string || "Unknown",
-        role: payload?.role as string || "Unknown",
+        name: session?.user?.name || session?.user?.email?.split('@')[0] || "Unknown User",
+        email: session?.user?.email || "Unknown",
+        role: (session?.user as any)?.role || "Unknown",
         createdAt: "2026-02-26" // Mock joining date
     }
 
@@ -27,8 +26,8 @@ export default async function ProfilePage() {
                     <div className="w-24 h-24 rounded-full bg-dlsud-green/10 flex items-center justify-center mb-4 ring-4 ring-gray-50">
                         <User className="h-12 w-12 text-dlsud-green" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 border-b pb-2 w-full truncate px-2" title={user.email}>
-                        {user.email.split('@')[0]}
+                    <h2 className="text-xl font-bold text-gray-900 border-b pb-2 w-full truncate px-2" title={user.name}>
+                        {user.name}
                     </h2>
                     <div className="mt-4 flex items-center justify-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-dlsud-gold animate-pulse"></span>
