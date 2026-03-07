@@ -102,11 +102,14 @@ export const authOptions: NextAuthOptions = {
                 if (dbUser) {
                     (session.user as any).id = dbUser.id;
                     (session.user as any).role = dbUser.role;
-                    if ((dbUser as any).name) {
-                        session.user.name = (dbUser as any).name;
+                    if (dbUser.name) {
+                        session.user.name = dbUser.name;
                     }
                 } else {
-                    return {} as any; // Critical Cache Buster
+                    // New Google user — Prisma adapter is still creating the row.
+                    // Fall back to JWT token data so sign-in is not blocked.
+                    (session.user as any).id = token.id;
+                    (session.user as any).role = token.role || "STUDENT";
                 }
             }
             return session;
