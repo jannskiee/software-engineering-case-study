@@ -2,28 +2,12 @@ import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
-/**
- * Custom adapter: uses PrismaAdapter for user/account persistence
- * but strips session management since we use JWT strategy.
- * This prevents the PrismaAdapter from conflicting with JWT sessions
- * which caused the "Access Denied" error on Google OAuth.
- */
-function CustomPrismaAdapter() {
-    const base = PrismaAdapter(db);
-    return {
-        ...base,
-        createSession: undefined,
-        getSessionAndUser: undefined,
-        updateSession: undefined,
-        deleteSession: undefined,
-    };
-}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const authOptions: NextAuthOptions = {
-    adapter: CustomPrismaAdapter() as any,
+    adapter: PrismaAdapter(db),
     providers: [
         CredentialsProvider({
             name: "credentials",
@@ -55,10 +39,7 @@ export const authOptions: NextAuthOptions = {
     session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
     callbacks: {
         async signIn({ user, account }) {
-            // Only block the superadmin account from Google OAuth
-            if (account?.provider === "google" && user.email === "superadmin") {
-                return false;
-            }
+            if (account?.provider === "google" && user.email === "superadmin") return false;
             return true;
         },
         async jwt({ token, user }) {
@@ -68,7 +49,6 @@ export const authOptions: NextAuthOptions = {
                 token.name = user.name || token.name || null;
                 const cookieStore = cookies();
                 const pendingRole = cookieStore.get("pending_role")?.value;
-                // Try by ID first, then fall back to email for new Google users
                 let dbUser = await db.user.findUnique({ where: { id: user.id } });
                 if (!dbUser && user.email) {
                     dbUser = await db.user.findUnique({ where: { email: user.email } });
@@ -82,7 +62,6 @@ export const authOptions: NextAuthOptions = {
                             token.role = dbUser.role;
                         }
                     } else {
-                        // New Google user � Prisma adapter is still creating the row
                         token.role = pendingRole;
                     }
                 } else {
@@ -92,7 +71,6 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            // Build session entirely from JWT token � never block on DB lookup
             if (token && session.user) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (session.user as any).id = token.id;
@@ -100,7 +78,6 @@ export const authOptions: NextAuthOptions = {
                 (session.user as any).role = token.role || "STUDENT";
                 if (token.name) session.user.name = token.name as string;
                 if (token.email) session.user.email = token.email as string;
-                // Sync latest data from DB without ever blocking the session
                 try {
                     const dbUser = await db.user.findUnique({
                         where: { email: token.email as string },
@@ -114,7 +91,7 @@ export const authOptions: NextAuthOptions = {
                         if (dbUser.name) session.user.name = dbUser.name;
                     }
                 } catch {
-                    // DB sync failed � session still works from JWT token
+                    // DB sync failed - session still works from JWT token
                 }
             }
             return session;
