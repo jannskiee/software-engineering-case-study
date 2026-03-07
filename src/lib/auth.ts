@@ -39,7 +39,18 @@ export const authOptions: NextAuthOptions = {
     session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
     callbacks: {
         async signIn({ user, account }) {
-            if (account?.provider === "google" && user.email === "superadmin") return false;
+            if (account?.provider === "google") {
+                // Block Google OAuth from linking to any credentials-only account (e.g. superadmin)
+                // Check by DB role to prevent future account hijacking regardless of email
+                if (user.id) {
+                    const existing = await db.user.findUnique({
+                        where: { id: user.id },
+                        select: { role: true, password: true }
+                    })
+                    if (existing?.role === "SUPERADMIN") return false
+                    if (existing?.password !== null && existing?.password !== undefined) return false
+                }
+            }
             return true;
         },
         async jwt({ token, user }) {
