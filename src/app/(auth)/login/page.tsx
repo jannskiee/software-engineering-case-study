@@ -2,18 +2,30 @@
 
 import { useState, Suspense } from "react"
 import { signIn } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const errorMessages: Record<string, string> = {
+    OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
+    OAuthSignin: "An error occurred while signing in with Google. Please try again.",
+    OAuthCallback: "An error occurred during the Google callback. Please try again.",
+    AccessDenied: "Access denied. Your account may not be authorized.",
+    Verification: "The verification link has expired.",
+    Default: "An unexpected error occurred. Please try again.",
+}
+
 function LoginForm() {
     const [role, setRole] = useState("STUDENT")
     const [loading, setLoading] = useState(false)
+    const searchParams = useSearchParams()
+    const errorParam = searchParams.get("error")
+    const errorMessage = errorParam ? (errorMessages[errorParam] ?? errorMessages.Default) : null
 
     const handleGoogleSignIn = async () => {
         setLoading(true)
-        // Store the selected role in a cookie so the NextAuth backend can assign it upon registration
         document.cookie = `pending_role=${role}; path=/; max-age=300;`
 
         await signIn("google", { callbackUrl: "/dashboard" })
@@ -35,6 +47,11 @@ function LoginForm() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-6">
+                        {errorMessage && (
+                            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200 text-center font-medium">
+                                {errorMessage}
+                            </div>
+                        )}
                         <div className="space-y-4 pt-2">
                             <Label className="text-gray-700 font-medium text-center block">
                                 Select Your Department Role
