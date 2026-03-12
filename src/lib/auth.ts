@@ -35,15 +35,44 @@ export const authOptions: NextAuthOptions = {
             })]
             : []),
     ],
-    secret: process.env.NEXTAUTH_SECRET || "fallback_secret_for_development_only",
-    session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
     callbacks: {
-        async signIn() {
-            // Disabled all linking constraints & Identity management blocks for testing.
-            // Any google account can map to any existing account regardless of credential status.
+        async signIn({ user, account }: { user: any, account: any }) {
+            // Disabled all linking constraints for testing.
+            // If the user logs in with Google and their email already exists (e.g., from credentials),
+            // manually link the Google Account to the existing User to completely bypass the OAuthAccountNotLinked error.
+            if (account?.provider === "google" && user?.email) {
+                const existingUser = await db.user.findUnique({
+                    where: { email: user.email }
+                });
+
+                if (existingUser) {
+                    const existingAccount = await db.account.findFirst({
+                        where: {
+                            provider: "google",
+                            providerAccountId: account.providerAccountId
+                        }
+                    });
+
+                    if (!existingAccount) {
+                        await db.account.create({
+                            data: {
+                                userId: existingUser.id,
+                                type: account.type,
+                                provider: account.provider,
+                                providerAccountId: account.providerAccountId,
+                                access_token: account.access_token,
+                                expires_at: account.expires_at,
+                                id_token: account.id_token,
+                                scope: account.scope,
+                                token_type: account.token_type,
+                            }
+                        });
+                    }
+                }
+            }
             return true;
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user }: { token: any, user: any }) {
             if (user) {
                 token.id = user.id;
                 token.email = user.email;
@@ -74,7 +103,7 @@ export const authOptions: NextAuthOptions = {
             }
             return token;
         },
-        async session({ session, token }) {
+        async session({ session, token }: { session: any, token: any }) {
             if (token && session.user) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (session.user as any).id = token.id;
