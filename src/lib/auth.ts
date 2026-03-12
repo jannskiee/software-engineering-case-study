@@ -37,95 +37,106 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async signIn({ user, account }: { user: any, account: any }) {
-            // Disabled all linking constraints for testing.
-            // If the user logs in with Google and their email already exists (e.g., from credentials),
-            // manually link the Google Account to the existing User to completely bypass the OAuthAccountNotLinked error.
-            if (account?.provider === "google" && user?.email) {
-                const existingUser = await db.user.findUnique({
-                    where: { email: user.email }
-                });
-
-                if (existingUser) {
-                    const existingAccount = await db.account.findFirst({
-                        where: {
-                            provider: "google",
-                            providerAccountId: account.providerAccountId
-                        }
+            try {
+                if (account?.provider === "google" && user?.email) {
+                    const existingUser = await db.user.findUnique({
+                        where: { email: user.email }
                     });
 
-                    if (!existingAccount) {
-                        await db.account.create({
-                            data: {
-                                userId: existingUser.id,
-                                type: account.type,
-                                provider: account.provider,
-                                providerAccountId: account.providerAccountId,
-                                access_token: account.access_token,
-                                expires_at: account.expires_at,
-                                id_token: account.id_token,
-                                scope: account.scope,
-                                token_type: account.token_type,
+                    if (existingUser) {
+                        const existingAccount = await db.account.findFirst({
+                            where: {
+                                provider: "google",
+                                providerAccountId: account.providerAccountId
                             }
                         });
+
+                        if (!existingAccount) {
+                            await db.account.create({
+                                data: {
+                                    userId: existingUser.id,
+                                    type: account.type,
+                                    provider: account.provider,
+                                    providerAccountId: account.providerAccountId,
+                                    access_token: account.access_token,
+                                    expires_at: account.expires_at,
+                                    id_token: account.id_token,
+                                    scope: account.scope,
+                                    token_type: account.token_type,
+                                }
+                            });
+                        }
                     }
                 }
+            } catch (err) {
+                console.error("Auth SignIn Error:", err);
             }
             return true;
         },
         async jwt({ token, user }: { token: any, user: any }) {
-            if (user) {
-                token.id = user.id;
-                token.email = user.email;
-                token.name = user.name || token.name || null;
-                const cookieStore = cookies();
-                const pendingRole = cookieStore.get("pending_role")?.value;
-                let dbUser = await db.user.findUnique({ where: { id: user.id } });
-                if (!dbUser && user.email) {
-                    dbUser = await db.user.findUnique({ where: { email: user.email } });
-                }
-                
-                // Dynamically forcefully change the role no matter what if one is pending during login.
-                if (pendingRole && ["STUDENT", "PROFESSOR", "ADMIN"].includes(pendingRole)) {
-                    if (dbUser) {
-                        // Protect superadmin from being casually overwritten, but allow all others to swap freely.
-                        if (dbUser.role !== "SUPERADMIN") {
-                            await db.user.update({ where: { id: dbUser.id }, data: { role: pendingRole } });
-                            token.role = pendingRole;
+            try {
+                if (user) {
+                    token.id = user.id;
+                    token.email = user.email;
+                    token.name = user.name || token.name || null;
+                    
+                    let pendingRole = undefined;
+                    try {
+                        const cookieStore = cookies();
+                        pendingRole = cookieStore.get("pending_role")?.value;
+                    } catch (e) {
+                         console.warn("Cookies access failed in JWT:", e);
+                    }
+
+                    let dbUser = await db.user.findUnique({ where: { id: user.id } });
+                    if (!dbUser && user.email) {
+                        dbUser = await db.user.findUnique({ where: { email: user.email } });
+                    }
+                    
+                    if (pendingRole && ["STUDENT", "PROFESSOR", "ADMIN"].includes(pendingRole)) {
+                        if (dbUser) {
+                            if (dbUser.role !== "SUPERADMIN") {
+                                await db.user.update({ where: { id: dbUser.id }, data: { role: pendingRole } });
+                                token.role = pendingRole;
+                            } else {
+                                token.role = dbUser.role;
+                            }
                         } else {
-                            token.role = dbUser.role;
+                            token.role = pendingRole;
                         }
                     } else {
-                        token.role = pendingRole;
+                        token.role = dbUser?.role || "STUDENT";
                     }
-                } else {
-                    token.role = dbUser?.role || "STUDENT";
                 }
+            } catch (err) {
+                console.error("Auth JWT Error:", err);
             }
             return token;
         },
         async session({ session, token }: { session: any, token: any }) {
-            if (token && session.user) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (session.user as any).id = token.id;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (session.user as any).role = token.role || "STUDENT";
-                if (token.name) session.user.name = token.name as string;
-                if (token.email) session.user.email = token.email as string;
-                try {
-                    const dbUser = await db.user.findUnique({
-                        where: { email: token.email as string },
-                        select: { id: true, role: true, name: true }
-                    });
-                    if (dbUser) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (session.user as any).id = dbUser.id;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (session.user as any).role = dbUser.role;
-                        if (dbUser.name) session.user.name = dbUser.name;
+            try {
+                if (token && session.user) {
+                    (session.user as any).id = token.id;
+                    (session.user as any).role = token.role || "STUDENT";
+                    if (token.name) session.user.name = token.name as string;
+                    if (token.email) session.user.email = token.email as string;
+                    
+                    try {
+                        const dbUser = await db.user.findUnique({
+                            where: { email: token.email as string },
+                            select: { id: true, role: true, name: true }
+                        });
+                        if (dbUser) {
+                            (session.user as any).id = dbUser.id;
+                            (session.user as any).role = dbUser.role;
+                            if (dbUser.name) session.user.name = dbUser.name;
+                        }
+                    } catch (e) {
+                        console.error("Session DB Sync failed:", e);
                     }
-                } catch {
-                    // DB sync failed - session still works from JWT token
                 }
+            } catch (err) {
+                console.error("Auth Session Error:", err);
             }
             return session;
         }
