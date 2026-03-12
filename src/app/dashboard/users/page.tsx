@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, GraduationCap, Briefcase, ShieldCheck, ShieldAlert } from "lucide-react"
 import { db } from "@/lib/db"
+import { format } from "date-fns"
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -44,6 +45,11 @@ export default async function UserManagementPage() {
         _count: {
             role: true,
         },
+    })
+
+    const usersList = await db.user.findMany({
+        select: { id: true, name: true, email: true, role: true, schoolId: true, createdAt: true },
+        orderBy: { createdAt: "desc" }
     })
 
     // Compute exactly how many users per role exist, defaulting to 0 if the query misses them
@@ -92,6 +98,46 @@ export default async function UserManagementPage() {
                         </Card>
                     )
                 })}
+            </div>
+
+            <div className="mt-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Identity & Access Management</h3>
+                <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-gray-200">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                                <tr>
+                                    <th className="px-6 py-3">User</th>
+                                    <th className="px-6 py-3">School ID</th>
+                                    <th className="px-6 py-3">Registered</th>
+                                    <th className="px-6 py-3">Privilege Access Schema</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {usersList.map((u: any) => (
+                                    <tr key={u.id} className="bg-white border-b hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium text-gray-900">
+                                            {u.name} <br/>
+                                            <span className="text-xs text-gray-500 font-normal">{u.email}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-500">{u.schoolId || "-"}</td>
+                                        <td className="px-6 py-4 text-gray-500">{format(new Date(u.createdAt), 'PP')}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`text-xs font-semibold px-2 py-1 rounded shadow-sm border
+                                                ${u.role === 'SUPERADMIN' ? 'bg-red-50 text-red-700 border-red-200' : ''}
+                                                ${u.role === 'ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
+                                                ${u.role === 'PROFESSOR' ? 'bg-amber-50 text-amber-700 border-amber-200' : ''}
+                                                ${u.role === 'STUDENT' ? 'bg-gray-50 text-gray-700 border-gray-200' : ''}
+                                            `}>
+                                                {u.role}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
             </div>
         </div>
     )

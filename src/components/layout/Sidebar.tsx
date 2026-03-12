@@ -43,6 +43,12 @@ export function Sidebar({ user }: SidebarProps) {
             icon: Users,
             roles: ["ADMIN", "SUPERADMIN"],
         },
+        {
+            title: "Inventory",
+            href: "/dashboard/inventory",
+            icon: PackageSearch,
+            roles: ["ADMIN", "SUPERADMIN"],
+        },
     ]
 
     const filteredMenu = menuItems.filter((item) => item.roles.includes(user.role))

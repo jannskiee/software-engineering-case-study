@@ -1,8 +1,6 @@
 import { Activity, ShieldAlert, Users as UsersIcon, Database } from "lucide-react"
 import { getSuperAdminData } from "@/app/actions/superadmin"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
-import { RoleSelector } from "./RoleSelector"
 import { format } from "date-fns"
 
 export async function SuperAdminDashboard({ userId }: { userId: string }) {
@@ -48,69 +46,38 @@ export async function SuperAdminDashboard({ userId }: { userId: string }) {
                 </Card>
             </div>
 
-            <Tabs defaultValue="users" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1 rounded-xl">
-                    <TabsTrigger value="users" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700">
-                        Identity & Access Management
-                    </TabsTrigger>
-                    <TabsTrigger value="audit" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900">
-                        Master Audit Trail
-                    </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="users" className="mt-6">
-                    <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-gray-200">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
-                                    <tr>
-                                        <th className="px-6 py-3">User</th>
-                                        <th className="px-6 py-3">School ID</th>
-                                        <th className="px-6 py-3">Registered</th>
-                                        <th className="px-6 py-3">Privilege Access Schema</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.users.map((u: any) => (
-                                        <tr key={u.id} className="bg-white border-b hover:bg-gray-50">
-                                            <td className="px-6 py-4 font-medium text-gray-900">
-                                                {u.name} <br/>
-                                                <span className="text-xs text-gray-500 font-normal">{u.email}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-500">{u.schoolId || "-"}</td>
-                                            <td className="px-6 py-4 text-gray-500">{format(new Date(u.createdAt), 'PP')}</td>
-                                            <td className="px-6 py-4">
-                                                <RoleSelector userId={u.id} currentRole={u.role} />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-                </TabsContent>
-                
-                <TabsContent value="audit" className="mt-6 border-t pt-4">
-                    <div className="space-y-3">
-                        {data.auditLogs.map((log: any) => (
-                            <div key={log.id} className="flex justify-between items-start text-sm p-3 bg-gray-50 border border-gray-100 rounded-lg hover:bg-white transition-colors">
-                                <div className="space-y-1">
-                                    <div className="flex gap-2 items-center">
-                                        <span className="font-bold text-gray-900">{log.actor.name || log.actor.email}</span>
-                                        <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider">
-                                            {log.action}
-                                        </span>
+            {/* Audit Logs */}
+            <div className="mt-8">
+                <CardsHeader title="Master Audit Trail" />
+                <Card className="overflow-hidden shadow-sm border-gray-100 mt-4">
+                    <CardContent className="p-0">
+                        <div className="divide-y divide-gray-100">
+                            {data.auditLogs.map((log: any) => (
+                                <div key={log.id} className="flex justify-between items-start text-sm p-4 bg-white hover:bg-gray-50 transition-colors">
+                                    <div className="space-y-1">
+                                        <div className="flex gap-2 items-center">
+                                            <span className="font-bold text-gray-900">{log.actor.name || log.actor.email}</span>
+                                            <span className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider">
+                                                {log.action}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 font-mono">Entity Target: {log.entityId || "SYSTEM"}</p>
                                     </div>
-                                    <p className="text-xs text-gray-500 font-mono">Entity Target: {log.entityId || "SYSTEM"}</p>
+                                    <div className="text-xs text-gray-400 font-medium shrink-0">
+                                        {format(new Date(log.createdAt), "MMM dd HH:mm:ss")}
+                                    </div>
                                 </div>
-                                <div className="text-xs text-gray-400 font-medium shrink-0">
-                                    {format(new Date(log.createdAt), "MMM dd HH:mm:ss")}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </TabsContent>
-            </Tabs>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
+    )
+}
+
+function CardsHeader({ title }: { title: string }) {
+    return (
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
     )
 }
