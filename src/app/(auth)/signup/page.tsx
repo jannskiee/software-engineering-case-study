@@ -1,22 +1,45 @@
 "use client"
 
-import { useState, Suspense } from "react"
-import { signIn } from "next-auth/react"
+import { useState, useEffect, Suspense } from "react"
+import { signIn, useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-function LoginForm() {
+function SignupForm() {
     const [role, setRole] = useState("STUDENT")
     const [loading, setLoading] = useState(false)
+    const { data: session, status } = useSession()
+
+    // Redirect to dashboard if already authenticated
+    useEffect(() => {
+        if (status === "authenticated" && session) {
+            window.location.href = "/dashboard"
+        }
+    }, [status, session])
 
     const handleGoogleSignIn = async () => {
         setLoading(true)
-        // Store the selected role in a cookie so the NextAuth backend can assign it upon registration
         document.cookie = `pending_role=${role}; path=/; max-age=300;`
-
         await signIn("google", { callbackUrl: "/dashboard" })
+    }
+
+    // Show loading while checking session
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
+                <p className="text-gray-500 animate-pulse">Loading...</p>
+            </div>
+        )
+    }
+
+    if (status === "authenticated") {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
+                <p className="text-gray-500 animate-pulse">Redirecting to dashboard...</p>
+            </div>
+        )
     }
 
     return (
@@ -79,10 +102,10 @@ function LoginForm() {
     )
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
     return (
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-            <LoginForm />
+            <SignupForm />
         </Suspense>
     )
 }

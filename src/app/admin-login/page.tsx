@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { signIn, useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,10 +9,17 @@ import { Label } from "@/components/ui/label"
 import { Lock } from "lucide-react"
 
 export default function AdminPortalPage() {
-    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [form, setForm] = useState({ username: "", password: "" })
+    const { data: session, status } = useSession()
+
+    // Redirect to dashboard if already authenticated
+    useEffect(() => {
+        if (status === "authenticated" && session) {
+            window.location.href = "/dashboard"
+        }
+    }, [status, session])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -29,13 +35,16 @@ export default function AdminPortalPage() {
 
             if (res?.error) {
                 setError("Invalid administrator credentials.")
+                setLoading(false)
+            } else if (res?.ok) {
+                // Force a hard navigation to ensure the session cookie is picked up
+                window.location.href = "/dashboard"
             } else {
-                router.push("/dashboard")
-                router.refresh()
+                setError("Sign-in failed. Please try again.")
+                setLoading(false)
             }
-        } catch (err) {
+        } catch {
             setError("A system error occurred.")
-        } finally {
             setLoading(false)
         }
     }

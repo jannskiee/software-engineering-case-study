@@ -5,50 +5,68 @@ import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(db),
+    // CRITICAL: Must use "jwt" strategy when using CredentialsProvider with PrismaAdapter.
+    // The database strategy does NOT create sessions for the credentials provider,
+    // causing an infinite redirect loop back to /login.
+    session: {
+        strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+    },
     providers: [
         CredentialsProvider({
             name: "credentials",
             credentials: {
                 username: { label: "Username", type: "text" },
-                password: { label: "Password", type: "password" }
+                password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
                 if (!credentials?.username || !credentials?.password) return null;
-                const user = await db.user.findUnique({ where: { email: credentials.username } });
+                const user = await db.user.findUnique({
+                    where: { email: credentials.username },
+                });
                 if (!user || !user.password) return null;
                 const isValid = await bcrypt.compare(credentials.password, user.password);
                 if (!isValid) return null;
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { password: _pw, ...userWithoutPassword } = user;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                return userWithoutPassword as any;
-            }
+                // Return the user object for the JWT token
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    role: user.role,
+                };
+            },
         }),
         ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-            ? [GoogleProvider({
-                clientId: process.env.GOOGLE_CLIENT_ID,
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: true,
-            })]
+            ? [
+                  GoogleProvider({
+                      clientId: process.env.GOOGLE_CLIENT_ID,
+                      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                      allowDangerousEmailAccountLinking: true,
+                  }),
+              ]
             : []),
     ],
     callbacks: {
-        async signIn({ user, account }: { user: any, account: any }) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async signIn({ user, account }: { user: any; account: any }) {
             try {
                 if (account?.provider === "google" && user?.email) {
+                    // Check if user already exists in the database
                     const existingUser = await db.user.findUnique({
-                        where: { email: user.email }
+                        where: { email: user.email },
                     });
 
                     if (existingUser) {
+                        // Link the Google account if not already linked
                         const existingAccount = await db.account.findFirst({
                             where: {
                                 provider: "google",
-                                providerAccountId: account.providerAccountId
-                            }
+                                providerAccountId: account.providerAccountId,
+                            },
                         });
 
                         if (!existingAccount) {
@@ -63,40 +81,48 @@ export const authOptions: NextAuthOptions = {
                                     id_token: account.id_token,
                                     scope: account.scope,
                                     token_type: account.token_type,
-                                }
+                                },
                             });
                         }
                     }
+                    // If user does not exist, the PrismaAdapter will create them automatically
                 }
             } catch (err) {
                 console.error("Auth SignIn Error:", err);
             }
+            // Always allow sign-in — no blocking
             return true;
         },
-        async jwt({ token, user }: { token: any, user: any }) {
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async jwt({ token, user, account }: { token: any; user: any; account: any }) {
             try {
+                // On initial sign-in (user object is present)
                 if (user) {
                     token.id = user.id;
                     token.email = user.email;
-                    token.name = user.name || token.name || null;
-                    
-                    let pendingRole = undefined;
+                    token.name = user.name || null;
+
+                    // Read the pending_role cookie (set by the login/signup page)
+                    let pendingRole: string | undefined;
                     try {
                         const cookieStore = cookies();
                         pendingRole = cookieStore.get("pending_role")?.value;
-                    } catch (e) {
-                         console.warn("Cookies access failed in JWT:", e);
+                    } catch {
+                        // cookies() may not be available in all contexts
                     }
 
-                    let dbUser = await db.user.findUnique({ where: { id: user.id } });
-                    if (!dbUser && user.email) {
-                        dbUser = await db.user.findUnique({ where: { email: user.email } });
-                    }
-                    
+                    // Look up the user in the database
+                    let dbUser = await db.user.findUnique({ where: { email: user.email as string } });
+
                     if (pendingRole && ["STUDENT", "PROFESSOR", "ADMIN"].includes(pendingRole)) {
                         if (dbUser) {
+                            // Never override SUPERADMIN role
                             if (dbUser.role !== "SUPERADMIN") {
-                                await db.user.update({ where: { id: dbUser.id }, data: { role: pendingRole } });
+                                await db.user.update({
+                                    where: { id: dbUser.id },
+                                    data: { role: pendingRole },
+                                });
                                 token.role = pendingRole;
                             } else {
                                 token.role = dbUser.role;
@@ -105,7 +131,8 @@ export const authOptions: NextAuthOptions = {
                             token.role = pendingRole;
                         }
                     } else {
-                        token.role = dbUser?.role || "STUDENT";
+                        // Use the role from the user object (credentials) or the database
+                        token.role = (user as any).role || dbUser?.role || "STUDENT";
                     }
                 }
             } catch (err) {
@@ -113,33 +140,40 @@ export const authOptions: NextAuthOptions = {
             }
             return token;
         },
-        async session({ session, token }: { session: any, token: any }) {
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async session({ session, token }: { session: any; token: any }) {
             try {
                 if (token && session.user) {
-                    (session.user as any).id = token.id;
-                    (session.user as any).role = token.role || "STUDENT";
-                    if (token.name) session.user.name = token.name as string;
-                    if (token.email) session.user.email = token.email as string;
-                    
+                    session.user.id = token.id;
+                    session.user.role = token.role || "STUDENT";
+                    if (token.name) session.user.name = token.name;
+                    if (token.email) session.user.email = token.email;
+
+                    // Sync the latest role from the database on every session access
                     try {
                         const dbUser = await db.user.findUnique({
                             where: { email: token.email as string },
-                            select: { id: true, role: true, name: true }
+                            select: { id: true, role: true, name: true },
                         });
                         if (dbUser) {
-                            (session.user as any).id = dbUser.id;
-                            (session.user as any).role = dbUser.role;
+                            session.user.id = dbUser.id;
+                            session.user.role = dbUser.role;
                             if (dbUser.name) session.user.name = dbUser.name;
                         }
-                    } catch (e) {
-                        console.error("Session DB Sync failed:", e);
+                    } catch {
+                        // Silently fail — use token values as fallback
                     }
                 }
             } catch (err) {
                 console.error("Auth Session Error:", err);
             }
             return session;
-        }
+        },
     },
-    pages: { signIn: "/login", error: "/login" }
+    pages: {
+        signIn: "/login",
+        error: "/login",
+    },
+    secret: process.env.NEXTAUTH_SECRET,
 };
