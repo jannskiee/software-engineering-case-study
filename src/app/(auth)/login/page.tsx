@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { signIn, useSession } from "next-auth/react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -21,7 +21,6 @@ function LoginForm() {
     const [role, setRole] = useState("STUDENT")
     const [loading, setLoading] = useState(false)
     const searchParams = useSearchParams()
-    const router = useRouter()
     const { data: session, status } = useSession()
     const errorParam = searchParams.get("error")
     const errorMessage = errorParam ? (errorMessages[errorParam] ?? errorMessages.Default) : null
