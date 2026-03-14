@@ -7,6 +7,11 @@ import { AlertCircle, CheckCircle2, ShieldAlert, XCircle } from "lucide-react"
 
 const SCANNER_REGION_ID = "reader"
 
+type ApprovalResult = {
+    success: boolean
+    error?: string
+}
+
 export function ProfessorQrScanner() {
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const processingRef = useRef(false)
@@ -102,8 +107,28 @@ export function ProfessorQrScanner() {
                         await stopScanner()
 
                         const { approveBorrowRequest } = await import("@/app/actions/approve")
+                        const approvalPromise: Promise<ApprovalResult> = approveBorrowRequest(decodedText)
+                            .then((result: unknown) => {
+                                if (result && typeof result === "object" && "success" in result) {
+                                    const typed = result as { success: unknown; error?: unknown }
+                                    return {
+                                        success: Boolean(typed.success),
+                                        error: typeof typed.error === "string" ? typed.error : undefined,
+                                    }
+                                }
+
+                                return {
+                                    success: false,
+                                    error: "Invalid approval response from server.",
+                                }
+                            })
+                            .catch((err: unknown) => {
+                                const message = err instanceof Error ? err.message : "Approval request failed."
+                                return { success: false, error: message }
+                            })
+
                         const timeoutResult = await Promise.race([
-                            approveBorrowRequest(decodedText),
+                            approvalPromise,
                             new Promise<{ success: false; error: string }>((resolve) => {
                                 setTimeout(() => {
                                     resolve({
