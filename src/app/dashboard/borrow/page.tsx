@@ -34,10 +34,14 @@ export default async function BorrowPage() {
         <div className="animate-in fade-in duration-500 w-full max-w-3xl mx-auto mt-4">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold tracking-tight text-dlsud-green">New Borrow Request</h1>
-                <p className="text-gray-500 mt-1 text-sm">Fill out the form to generate your digital approval QR code.</p>
+                <p className="text-gray-500 mt-1 text-sm">
+                    {role === "PROFESSOR"
+                        ? "Professor requests are auto-approved and sent directly to dispensing."
+                        : "Fill out the form to generate your digital approval QR code."}
+                </p>
             </div>
 
-            <BorrowFormWizard availableItems={availableItems} userId={(session.user as any).id} userRole={role} />
+            <BorrowFormWizard availableItems={availableItems} userRole={role} />
         </div>
     )
 }

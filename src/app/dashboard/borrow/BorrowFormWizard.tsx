@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
-import { Package, Users, QrCode, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock, Maximize2, X } from "lucide-react"
+import { Users, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock, Maximize2, X } from "lucide-react"
 import { createBorrowApprovalQrPayload } from "@/lib/qr-payload"
 
 type ItemOption = {
@@ -16,10 +16,11 @@ type ItemOption = {
     availableQty: number;
 }
 
-export function BorrowFormWizard({ availableItems, userId, userRole }: { availableItems: ItemOption[], userId: string, userRole: string }) {
+export function BorrowFormWizard({ availableItems, userRole }: { availableItems: ItemOption[], userRole: string }) {
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [generatedQr, setGeneratedQr] = useState<string | null>(null)
+    const [requestStatus, setRequestStatus] = useState<string | null>(null)
     const [showLargeQr, setShowLargeQr] = useState(false)
 
     // Form State
@@ -76,6 +77,14 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
 
             if (!res.requestId) {
                 alert("Error: Request ID was not returned.")
+                return
+            }
+
+            setRequestStatus(res.status || null)
+
+            if (res.status === "APPROVED" && userRole === "PROFESSOR") {
+                setGeneratedQr(null)
+                setStep(4)
                 return
             }
 
@@ -215,7 +224,11 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                         <div className="bg-green-50 text-dlsud-green p-4 rounded-lg flex gap-3 text-sm border border-green-100">
                             <CheckCircle2 className="w-5 h-5 shrink-0" />
-                            <p>Please review your request. Submitting this will generate a secure QR code that your Professor must scan to authorize the borrowing of these items.</p>
+                            <p>
+                                {userRole === "PROFESSOR"
+                                    ? "Please review your request. Professor requests are auto-approved and immediately queued for dispensing."
+                                    : "Please review your request. Submitting this will generate a secure QR code that your Professor must scan to authorize the borrowing of these items."}
+                            </p>
                         </div>
 
                         <div className="space-y-4">
@@ -254,7 +267,20 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                 )}
 
                 {/* STEP 4: Success / QR Display */}
-                {step === 4 && generatedQr && (
+                {step === 4 && userRole === "PROFESSOR" && requestStatus === "APPROVED" && (
+                    <div className="text-center py-6 animate-in zoom-in duration-500 flex flex-col items-center">
+                        <CheckCircle2 className="w-16 h-16 text-dlsud-green mb-3" />
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Auto-Approved</h3>
+                        <p className="text-gray-500 mb-6 max-w-sm">
+                            Your request is approved automatically and has been forwarded to the dispensing queue.
+                        </p>
+                        <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-full text-sm font-medium">
+                            <Clock className="w-4 h-4" /> Proceed to Admin Dispensing Desk
+                        </div>
+                    </div>
+                )}
+
+                {step === 4 && generatedQr && userRole !== "PROFESSOR" && (
                     <div className="text-center py-6 animate-in zoom-in duration-500 flex flex-col items-center">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Pending</h3>
                         <p className="text-gray-500 mb-8 max-w-sm">
@@ -338,7 +364,9 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                             onClick={handleSubmit}
                             disabled={isSubmitting || !roomNumber}
                         >
-                            {isSubmitting ? "Generating Secure Payload..." : "Generate Approval QR"}
+                            {isSubmitting
+                                ? (userRole === "PROFESSOR" ? "Submitting Auto-Approved Request..." : "Generating Secure Payload...")
+                                : (userRole === "PROFESSOR" ? "Submit Auto-Approved Request" : "Generate Approval QR")}
                         </Button>
                     )}
                 </CardFooter>

@@ -2,24 +2,32 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
-import { QrCode, X } from "lucide-react"
+import { Plus, QrCode, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfessorQrScanner } from "./ProfessorQrScanner"
+import Link from "next/link"
 
-export function ProfessorDashboard({ userId }: { userId: string }) {
+export function ProfessorDashboard({ userId: _userId }: { userId: string }) {
     const [showScanner, setShowScanner] = useState(false)
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Pending Approvals</h2>
-                <Button
-                    onClick={() => setShowScanner(!showScanner)}
-                    className="w-full sm:w-auto bg-dlsud-green hover:bg-dlsud-green/90 text-white flex items-center justify-center gap-2"
-                >
-                    {showScanner ? <X className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
-                    {showScanner ? "Close Scanner" : "Scan QR"}
-                </Button>
+                <div className="flex w-full sm:w-auto gap-2">
+                    <Link href="/dashboard/borrow" className="w-full sm:w-auto">
+                        <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4" /> New Request
+                        </Button>
+                    </Link>
+                    <Button
+                        onClick={() => setShowScanner(!showScanner)}
+                        className="w-full sm:w-auto bg-dlsud-green hover:bg-dlsud-green/90 text-white flex items-center justify-center gap-2"
+                    >
+                        {showScanner ? <X className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
+                        {showScanner ? "Close Scanner" : "Scan QR"}
+                    </Button>
+                </div>
             </div>
 
             {showScanner ? (
