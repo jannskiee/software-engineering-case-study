@@ -10,7 +10,7 @@ export async function approveBorrowRequest(payloadStr: string) {
     const session = await getServerSession(authOptions)
 
     if (!session || !session.user) {
-        throw new Error("Unauthorized")
+        return { success: false, error: "Session expired. Please log in again." }
     }
 
     const user = session.user as { id?: string; role?: string }
@@ -18,11 +18,11 @@ export async function approveBorrowRequest(payloadStr: string) {
     const role = user.role
 
     if (!professorId || !role) {
-        throw new Error("Invalid session payload")
+        return { success: false, error: "Invalid session. Please sign in again." }
     }
 
     if (role !== "PROFESSOR" && role !== "SUPERADMIN") {
-        throw new Error("Only Professors can approve requests")
+        return { success: false, error: "Only Professors can approve requests." }
     }
 
     const requestId = extractBorrowApprovalRequestId(payloadStr)

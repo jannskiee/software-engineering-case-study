@@ -121,8 +121,9 @@ export function ProfessorQrScanner() {
                         } else {
                             setError(res.error || "Approval failed.")
                         }
-                    } catch {
-                        setError("Hardware / Server disruption while validating QR.")
+                    } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : "Hardware / Server disruption while validating QR."
+                        setError(message)
                     } finally {
                         if (!unmountedRef.current) {
                             setIsProcessing(false)
