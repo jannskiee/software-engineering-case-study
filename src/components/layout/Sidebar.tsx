@@ -3,7 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch } from "lucide-react"
+import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch, Menu, X } from "lucide-react"
+import { useEffect, useState } from "react"
 
 interface SidebarProps {
     user: {
@@ -14,6 +15,11 @@ interface SidebarProps {
 
 export function Sidebar({ user }: SidebarProps) {
     const pathname = usePathname()
+    const [isOpen, setIsOpen] = useState(false)
+
+    useEffect(() => {
+        setIsOpen(false)
+    }, [pathname])
 
     const menuItems = [
         {
@@ -55,44 +61,48 @@ export function Sidebar({ user }: SidebarProps) {
     const filteredAdmin = adminItems.filter((item) => item.roles.includes(user.role))
 
     return (
-        <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-[#004f32] text-white shadow-xl flex flex-col transition-transform print:hidden">
-            <div className="flex h-20 items-center justify-center border-b border-[#006341]/50 px-6">
-                <Link href="/dashboard" className="flex items-center gap-3">
-                    <img src="/dlsud-logo.png" alt="DLSU-D Logo" className="w-10 h-10 object-contain drop-shadow-md bg-white rounded-full p-1" />
-                    <span className="font-bold text-lg tracking-tight">Inventory System</span>
-                </Link>
-            </div>
+        <>
+            <button
+                type="button"
+                onClick={() => setIsOpen(true)}
+                className="fixed left-4 top-4 z-50 inline-flex items-center gap-2 rounded-lg bg-[#004f32] px-3 py-2 text-sm font-medium text-white shadow-lg lg:hidden"
+            >
+                <Menu className="h-4 w-4" />
+                Menu
+            </button>
 
-            <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col">
-                <div className="mb-8">
-                    <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-dlsud-gold/80">Menu</div>
-                    <nav className="space-y-1">
-                        {filteredMenu.map((item) => {
-                            const Icon = item.icon
-                            const isActive = pathname === item.href
+            {isOpen && (
+                <button
+                    type="button"
+                    aria-label="Close menu overlay"
+                    className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
 
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={`flex items-center gap-3 rounded-lg px-3 py-3 transition-colors ${isActive
-                                        ? "bg-dlsud-gold text-[#004f32] font-semibold shadow-sm"
-                                        : "text-gray-100 hover:bg-[#006341] hover:text-white"
-                                        }`}
-                                >
-                                    <Icon className={`h-5 w-5 ${isActive ? "text-[#004f32]" : "text-gray-300"}`} />
-                                    <span>{item.title}</span>
-                                </Link>
-                            )
-                        })}
-                    </nav>
+            <aside
+                className={`fixed left-0 top-0 z-50 h-screen w-64 bg-[#004f32] text-white shadow-xl flex flex-col transition-transform print:hidden lg:z-40 ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+            >
+                <div className="flex h-20 items-center justify-between border-b border-[#006341]/50 px-6">
+                    <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
+                        <img src="/dlsud-logo.png" alt="DLSU-D Logo" className="w-10 h-10 object-contain drop-shadow-md bg-white rounded-full p-1" />
+                        <span className="font-bold text-lg tracking-tight">Inventory System</span>
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="rounded p-1 text-gray-100 hover:bg-[#006341] lg:hidden"
+                        aria-label="Close menu"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
                 </div>
 
-                {filteredAdmin.length > 0 && (
-                    <div className="mt-auto pt-6 pb-8 border-t border-[#006341]/30">
-                        <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-dlsud-gold/80">Administration</div>
+                <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col">
+                    <div className="mb-8">
+                        <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-dlsud-gold/80">Menu</div>
                         <nav className="space-y-1">
-                            {filteredAdmin.map((item) => {
+                            {filteredMenu.map((item) => {
                                 const Icon = item.icon
                                 const isActive = pathname === item.href
 
@@ -112,28 +122,54 @@ export function Sidebar({ user }: SidebarProps) {
                             })}
                         </nav>
                     </div>
-                )}
-            </div>
 
-            <div className="border-t border-[#006341]/50 p-4">
-                <div className="mb-4 rounded-lg bg-[#003622] p-4 shadow-inner">
-                    <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-white" title={user.email}>
-                        {user.email}
-                    </p>
-                    <p className="mt-1 flex items-center gap-2 text-xs text-dlsud-gold font-semibold uppercase">
-                        <span className="h-2 w-2 rounded-full bg-dlsud-gold"></span>
-                        {user.role}
-                    </p>
+                    {filteredAdmin.length > 0 && (
+                        <div className="mt-auto pt-6 pb-8 border-t border-[#006341]/30">
+                            <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-dlsud-gold/80">Administration</div>
+                            <nav className="space-y-1">
+                                {filteredAdmin.map((item) => {
+                                    const Icon = item.icon
+                                    const isActive = pathname === item.href
+
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            className={`flex items-center gap-3 rounded-lg px-3 py-3 transition-colors ${isActive
+                                                ? "bg-dlsud-gold text-[#004f32] font-semibold shadow-sm"
+                                                : "text-gray-100 hover:bg-[#006341] hover:text-white"
+                                                }`}
+                                        >
+                                            <Icon className={`h-5 w-5 ${isActive ? "text-[#004f32]" : "text-gray-300"}`} />
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    )
+                                })}
+                            </nav>
+                        </div>
+                    )}
                 </div>
 
-                <button
-                    onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600/10 px-4 py-2.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600/20 hover:text-white"
-                >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                </button>
-            </div>
-        </aside>
+                <div className="border-t border-[#006341]/50 p-4">
+                    <div className="mb-4 rounded-lg bg-[#003622] p-4 shadow-inner">
+                        <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-white" title={user.email}>
+                            {user.email}
+                        </p>
+                        <p className="mt-1 flex items-center gap-2 text-xs text-dlsud-gold font-semibold uppercase">
+                            <span className="h-2 w-2 rounded-full bg-dlsud-gold"></span>
+                            {user.role}
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600/10 px-4 py-2.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600/20 hover:text-white"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                    </button>
+                </div>
+            </aside>
+        </>
     )
 }

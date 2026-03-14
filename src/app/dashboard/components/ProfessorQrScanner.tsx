@@ -1,61 +1,143 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Html5QrcodeScanner } from "html5-qrcode"
+import { useEffect, useRef, useState } from "react"
+import { Html5Qrcode, Html5QrcodeCameraScanConfig } from "html5-qrcode"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle2, ShieldAlert, XCircle } from "lucide-react"
+import { AlertCircle, CheckCircle2, ShieldAlert, XCircle } from "lucide-react"
+
+const SCANNER_REGION_ID = "reader"
 
 export function ProfessorQrScanner() {
+    const scannerRef = useRef<Html5Qrcode | null>(null)
+    const processingRef = useRef(false)
+
     const [scanResult, setScanResult] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
     useEffect(() => {
-        // Only initialize scanner if we haven't successfully processed one yet to prevent rapid-fire loops
-        if (scanResult) return;
+        if (scanResult) return
 
-        const scanner = new Html5QrcodeScanner(
-            "reader", 
-            { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true }, 
-            false
-        );
+        let isMounted = true
 
-        scanner.render(onScanSuccess, onScanFailure);
-
-        async function onScanSuccess(decodedText: string) {
-            scanner.clear();
-            setScanResult(decodedText);
-            setIsProcessing(true);
-            setError(null);
+        const stopScanner = async () => {
+            const scanner = scannerRef.current
+            if (!scanner) return
 
             try {
-                const { approveBorrowRequest } = await import("@/app/actions/approve");
-                const res = await approveBorrowRequest(decodedText);
-                
-                if (res.success) {
-                    setSuccessMsg(`Successfully Approved Student Request!`);
-                } else {
-                    setError(res.error);
+                if (scanner.isScanning) {
+                    await scanner.stop()
                 }
-            } catch (err: any) {
-                setError("Hardware / Server disruption while validating QR.");
+                await scanner.clear()
+            } catch (e) {
+                console.error("Failed to stop/clear QR scanner.", e)
             } finally {
-                setIsProcessing(false);
+                scannerRef.current = null
             }
         }
 
-        function onScanFailure(error: any) {
-            // html5-qrcode spam logs scan failures every frame, we ignore them
+        const startScanner = async () => {
+            setError(null)
+
+            const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+            if (!window.isSecureContext && !isLocalhost) {
+                setError("Camera access requires HTTPS. Open this page over a secure connection.")
+                return
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setError("This browser does not support camera access.")
+                return
+            }
+
+            await stopScanner()
+
+            try {
+                const cameras = await Html5Qrcode.getCameras()
+                if (!cameras || cameras.length === 0) {
+                    setError("No camera detected on this device.")
+                    return
+                }
+
+                const scanner = new Html5Qrcode(SCANNER_REGION_ID)
+                scannerRef.current = scanner
+
+                const rearCamera = cameras.find((camera) => /back|rear|environment/i.test(camera.label))
+                const cameraConfig = rearCamera
+                    ? { deviceId: { exact: rearCamera.id } }
+                    : { facingMode: { ideal: "environment" } }
+
+                const qrConfig: Html5QrcodeCameraScanConfig = {
+                    fps: 10,
+                    aspectRatio: 1,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const edge = Math.min(viewfinderWidth, viewfinderHeight, 280)
+                        return { width: edge, height: edge }
+                    },
+                }
+
+                const handleScanSuccess = async (decodedText: string) => {
+                    if (processingRef.current) return
+                    processingRef.current = true
+
+                    setScanResult(decodedText)
+                    setIsProcessing(true)
+                    setError(null)
+
+                    try {
+                        await stopScanner()
+
+                        const { approveBorrowRequest } = await import("@/app/actions/approve")
+                        const res = await approveBorrowRequest(decodedText)
+
+                        if (res.success) {
+                            setSuccessMsg("Successfully Approved Student Request!")
+                        } else {
+                            setError(res.error)
+                        }
+                    } catch {
+                        setError("Hardware / Server disruption while validating QR.")
+                    } finally {
+                        if (isMounted) {
+                            setIsProcessing(false)
+                        }
+                    }
+                }
+
+                const handleScanFailure = () => {
+                    // Ignore per-frame decode misses.
+                }
+
+                try {
+                    await scanner.start(cameraConfig, qrConfig, handleScanSuccess, handleScanFailure)
+                } catch {
+                    // Fallback to first detected camera if preferred rear camera cannot start.
+                    await scanner.start(cameras[0].id, qrConfig, handleScanSuccess, handleScanFailure)
+                }
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : String(e || "Unknown scanner error")
+                if (/permission|denied|notallowed/i.test(msg)) {
+                    setError("Camera permission was denied. Allow camera access in browser settings and try again.")
+                    return
+                }
+                setError("Unable to initialize camera. Close other apps using the camera and retry.")
+            }
         }
 
+        startScanner()
+
         return () => {
-            scanner.clear().catch(e => console.error("Failed to clear scanner on unmount.", e));
+            isMounted = false
+            processingRef.current = false
+            stopScanner()
         }
     }, [scanResult])
 
     const resetScanner = () => {
+        processingRef.current = false
         setScanResult(null)
+        setIsProcessing(false)
         setError(null)
         setSuccessMsg(null)
     }
@@ -65,13 +147,20 @@ export function ProfessorQrScanner() {
             <CardContent className="p-0">
                 {!scanResult ? (
                     <div className="flex flex-col">
-                        <div id="reader" className="w-full bg-black min-h-[300px]"></div>
-                        <div className="p-4 text-center text-sm text-gray-500">
-                            Point camera at the Student's PENDING QR curve.
-                        </div>
+                        <div id={SCANNER_REGION_ID} className="w-full bg-black min-h-[300px]" />
+                        {error ? (
+                            <div className="p-4 text-center text-sm text-red-600 flex items-start gap-2">
+                                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                <span>{error}</span>
+                            </div>
+                        ) : (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                                Point camera at the Student&apos;s pending QR code.
+                            </div>
+                        )}
                     </div>
                 ) : (
-                    <div className="p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
+                    <div className="p-6 sm:p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
                         {isProcessing ? (
                             <div className="animate-pulse flex flex-col items-center">
                                 <ShieldAlert className="w-12 h-12 text-dlsud-gold mb-3" />

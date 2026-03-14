@@ -17,8 +17,8 @@ export default async function ProfilePage() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">User Profile</h1>
-                <p className="text-gray-500 mt-2">Manage your DLSU-D identity and security settings.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">User Profile</h1>
+                <p className="text-sm sm:text-base text-gray-500 mt-2">Manage your DLSU-D identity and security settings.</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
@@ -44,7 +44,7 @@ export default async function ProfilePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50/50">
+                            <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/50">
                                 <div className="flex items-center gap-3">
                                     <Mail className="h-5 w-5 text-gray-400" />
                                     <div>
@@ -54,7 +54,7 @@ export default async function ProfilePage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50/50">
+                            <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/50">
                                 <div className="flex items-center gap-3">
                                     <ShieldAlert className="h-5 w-5 text-gray-400" />
                                     <div>

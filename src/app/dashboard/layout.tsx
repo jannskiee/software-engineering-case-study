@@ -21,12 +21,10 @@ export default async function DashboardLayout({
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
-            {/* Sidebar Navigation */}
             <Sidebar user={user} />
 
-            {/* Main Content Area */}
-            <main className="flex-1 ml-64 min-h-screen transition-all print:ml-0">
-                <div className="container mx-auto p-8 max-w-7xl">
+            <main className="flex-1 min-h-screen transition-all lg:ml-64 print:ml-0">
+                <div className="mx-auto max-w-7xl px-4 pb-6 pt-20 sm:px-6 sm:pb-8 lg:px-8 lg:pt-8">
                     {children}
                 </div>
             </main>

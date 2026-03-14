@@ -91,14 +91,14 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
         <Card className="w-full bg-white shadow-md border-0">
             {/* Step Indicators */}
             {step < 4 && (
-                <div className="bg-gray-50 border-b px-6 py-4 flex items-center justify-between text-sm font-medium text-gray-400">
+                <div className="bg-gray-50 border-b px-4 sm:px-6 py-4 flex flex-wrap items-center gap-2 sm:justify-between text-xs sm:text-sm font-medium text-gray-400">
                     <span className={step >= 1 ? "text-dlsud-green" : ""}>1. Equipment</span>
                     <span className={step >= 2 ? "text-dlsud-green" : ""}>2. Details</span>
                     <span className={step >= 3 ? "text-dlsud-green" : ""}>3. Review</span>
                 </div>
             )}
 
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
                 {/* STEP 1: Select Items */}
                 {step === 1 && (
                     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
@@ -126,9 +126,9 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                                     if (!itemDetails) return null;
 
                                     return (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                                            <span className="font-medium text-sm text-gray-800">{itemDetails.name}</span>
-                                            <div className="flex items-center gap-4">
+                                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gray-50 rounded-lg border">
+                                            <span className="font-medium text-sm text-gray-800 break-words">{itemDetails.name}</span>
+                                            <div className="flex items-center gap-3 sm:gap-4">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-gray-500">Qty:</span>
                                                     <Input 
@@ -165,7 +165,7 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                         </div>
 
                         <div className="space-y-4 pt-4 border-t">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                 <div>
                                     <Label className="text-base">Group Project?</Label>
                                     <p className="text-sm text-gray-500">Will other students be using this equipment?</p>
@@ -184,7 +184,7 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                                 <div className="space-y-4 pt-4">
                                     <Label>Group Members</Label>
                                     {groupMembers.map((member, idx) => (
-                                        <div key={idx} className="flex gap-3">
+                                        <div key={idx} className="flex flex-col sm:flex-row gap-3">
                                             <Input 
                                                 placeholder="Full Name" 
                                                 value={member.name}
@@ -195,7 +195,7 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                                                 placeholder="School ID" 
                                                 value={member.schoolId}
                                                 onChange={(e) => handleUpdateMember(idx, 'schoolId', e.target.value)}
-                                                className="w-1/3"
+                                                className="w-full sm:w-1/3"
                                             />
                                         </div>
                                     ))}
@@ -259,10 +259,10 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                             Present this QR code to your Professor. Their scanner will digitally sign and approve this request.
                         </p>
                         
-                        <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-dlsud-gold/20 mb-6 relative">
+                        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border-2 border-dlsud-gold/20 mb-6 relative">
                             <QRCodeSVG 
                                 value={generatedQr} 
-                                size={220} 
+                                size={180} 
                                 level="H"
                                 includeMargin={true}
                                 fgColor="#004f32" 
@@ -283,27 +283,27 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
 
             {/* Navigation Footer */}
             {step < 4 && (
-                <CardFooter className="bg-gray-50 px-6 py-4 flex justify-between rounded-b-xl border-t">
+                <CardFooter className="bg-gray-50 px-4 sm:px-6 py-4 flex flex-col-reverse sm:flex-row gap-3 sm:justify-between rounded-b-xl border-t">
                     <Button 
                         variant="ghost" 
                         onClick={() => setStep(step - 1)}
                         disabled={step === 1 || isSubmitting}
-                        className="text-gray-500 hover:text-gray-800"
+                        className="w-full sm:w-auto text-gray-500 hover:text-gray-800"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2" /> Back
                     </Button>
 
                     {step < 3 ? (
                         <Button 
-                            className="bg-[#004f32] hover:bg-[#006341] text-white"
                             onClick={() => setStep(step + 1)}
                             disabled={selectedItems.length === 0}
+                            className="w-full sm:w-auto bg-[#004f32] hover:bg-[#006341] text-white"
                         >
                             Next Step <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     ) : (
                         <Button 
-                            className="bg-dlsud-gold hover:bg-yellow-500 text-gray-900 font-semibold shadow-md"
+                            className="w-full sm:w-auto bg-dlsud-gold hover:bg-yellow-500 text-gray-900 font-semibold shadow-md"
                             onClick={handleSubmit}
                             disabled={isSubmitting || !roomNumber}
                         >

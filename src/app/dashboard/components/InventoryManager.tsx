@@ -52,7 +52,7 @@ export function InventoryManager({ initialItems }: { initialItems: any[] }) {
                     />
                 </div>
                 {!isAdding && (
-                    <Button onClick={() => setIsAdding(true)} className="bg-dlsud-green hover:bg-[#003823] text-white flex items-center gap-2 shadow-md">
+                    <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto bg-dlsud-green hover:bg-[#003823] text-white flex items-center gap-2 shadow-md">
                         <PlusCircle className="w-4 h-4" /> Add Equipment
                     </Button>
                 )}
@@ -60,7 +60,7 @@ export function InventoryManager({ initialItems }: { initialItems: any[] }) {
 
             {isAdding && (
                 <Card className="border-dlsud-green/30 shadow-md animate-in slide-in-from-top-4 duration-300">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4 sm:p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                             <PlusCircle className="w-5 h-5 text-dlsud-green" /> Register New Equipment
                         </h3>
@@ -79,9 +79,9 @@ export function InventoryManager({ initialItems }: { initialItems: any[] }) {
                                 <label className="text-sm font-medium text-gray-700">Description (Optional)</label>
                                 <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-3 py-2 border rounded-md text-sm" placeholder="Any distinct warnings, specs, or calibration info." rows={2}></textarea>
                             </div>
-                            <div className="flex gap-3 justify-end pt-2">
-                                <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
-                                <Button type="submit" disabled={isSaving} className="bg-dlsud-green hover:bg-[#003823] text-white">
+                            <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-2">
+                                <Button type="button" variant="outline" onClick={() => setIsAdding(false)} className="w-full sm:w-auto">Cancel</Button>
+                                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto bg-dlsud-green hover:bg-[#003823] text-white">
                                     {isSaving ? "Saving to Database..." : "Publish to Catalog"}
                                 </Button>
                             </div>

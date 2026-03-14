@@ -66,8 +66,8 @@ export default async function UserManagementPage() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">User Management</h1>
-                    <p className="text-gray-500 mt-2">Overview of registered accounts and authorization distribution.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">User Management</h1>
+                    <p className="text-sm sm:text-base text-gray-500 mt-2">Overview of registered accounts and authorization distribution.</p>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
                     <Users className="w-5 h-5 text-dlsud-green" />
@@ -102,8 +102,38 @@ export default async function UserManagementPage() {
 
             <div className="mt-8">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Identity & Access Management</h3>
+                <div className="space-y-3 md:hidden">
+                    {usersList.map((u: any) => (
+                        <Card key={u.id} className="border-0 shadow-sm ring-1 ring-gray-200">
+                            <CardContent className="p-4 space-y-2">
+                                <div>
+                                    <p className="font-medium text-gray-900 break-words">{u.name}</p>
+                                    <p className="text-xs text-gray-500 break-all">{u.email}</p>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-500">School ID</span>
+                                    <span className="text-gray-700">{u.schoolId || "-"}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-500">Registered</span>
+                                    <span className="text-gray-700">{format(new Date(u.createdAt), 'PP')}</span>
+                                </div>
+                                <div>
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded shadow-sm border
+                                        ${u.role === 'SUPERADMIN' ? 'bg-red-50 text-red-700 border-red-200' : ''}
+                                        ${u.role === 'ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
+                                        ${u.role === 'PROFESSOR' ? 'bg-amber-50 text-amber-700 border-amber-200' : ''}
+                                        ${u.role === 'STUDENT' ? 'bg-gray-50 text-gray-700 border-gray-200' : ''}
+                                    `}>
+                                        {u.role}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
                 <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-gray-200">
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-sm text-left">
                             <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                                 <tr>

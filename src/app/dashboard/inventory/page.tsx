@@ -24,8 +24,8 @@ export default async function InventoryPage() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Laboratory Inventory</h1>
-                <p className="text-gray-500 mt-2">Manage tools, equipment, and components available for student dispensing.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Laboratory Inventory</h1>
+                <p className="text-sm sm:text-base text-gray-500 mt-2">Manage tools, equipment, and components available for student dispensing.</p>
             </div>
             
             <InventoryManager initialItems={items} />

@@ -9,7 +9,7 @@ export async function SuperAdminDashboard({ userId }: { userId: string }) {
     return (
         <div className="space-y-6">
             <div className="mb-4">
-                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <ShieldAlert className="w-6 h-6 text-red-600" /> Super Admin Root Control
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">Master operational dashboard. Altering privilege schemas logs transactions permanently.</p>
@@ -53,10 +53,10 @@ export async function SuperAdminDashboard({ userId }: { userId: string }) {
                     <CardContent className="p-0">
                         <div className="divide-y divide-gray-100">
                             {data.auditLogs.map((log: any) => (
-                                <div key={log.id} className="flex justify-between items-start text-sm p-4 bg-white hover:bg-gray-50 transition-colors">
+                                <div key={log.id} className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start text-sm p-4 bg-white hover:bg-gray-50 transition-colors">
                                     <div className="space-y-1">
                                         <div className="flex gap-2 items-center">
-                                            <span className="font-bold text-gray-900">{log.actor.name || log.actor.email}</span>
+                                            <span className="font-bold text-gray-900 break-words">{log.actor.name || log.actor.email}</span>
                                             <span className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider">
                                                 {log.action}
                                             </span>
