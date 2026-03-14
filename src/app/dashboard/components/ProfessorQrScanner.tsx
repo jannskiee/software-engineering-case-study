@@ -10,21 +10,18 @@ const SCANNER_REGION_ID = "reader"
 export function ProfessorQrScanner() {
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const processingRef = useRef(false)
+    const unmountedRef = useRef(false)
 
     const [scanResult, setScanResult] = useState<string | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-    useEffect(() => {
-        if (scanResult) return
+    const stopScanner = async () => {
+        const scanner = scannerRef.current
+        if (!scanner) return
 
-        let isMounted = true
-
-        const stopScanner = async () => {
-            const scanner = scannerRef.current
-            if (!scanner) return
-
+        const stopPromise = (async () => {
             try {
                 if (scanner.isScanning) {
                     await scanner.stop()
@@ -35,7 +32,23 @@ export function ProfessorQrScanner() {
             } finally {
                 scannerRef.current = null
             }
+        })()
+
+        // Some devices can hang on stop/clear; do not block approval flow forever.
+        await Promise.race([
+            stopPromise,
+            new Promise<void>((resolve) => setTimeout(resolve, 2500)),
+        ])
+    }
+
+    useEffect(() => {
+        return () => {
+            unmountedRef.current = true
         }
+    }, [])
+
+    useEffect(() => {
+        if (scanResult) return
 
         const startScanner = async () => {
             setError(null)
@@ -111,7 +124,7 @@ export function ProfessorQrScanner() {
                     } catch {
                         setError("Hardware / Server disruption while validating QR.")
                     } finally {
-                        if (isMounted) {
+                        if (!unmountedRef.current) {
                             setIsProcessing(false)
                         }
                     }
@@ -140,9 +153,8 @@ export function ProfessorQrScanner() {
         startScanner()
 
         return () => {
-            isMounted = false
             processingRef.current = false
-            stopScanner()
+            void stopScanner()
         }
     }, [scanResult])
 
