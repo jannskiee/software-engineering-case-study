@@ -89,12 +89,24 @@ export function ProfessorQrScanner() {
                         await stopScanner()
 
                         const { approveBorrowRequest } = await import("@/app/actions/approve")
-                        const res = await approveBorrowRequest(decodedText)
+                        const timeoutResult = await Promise.race([
+                            approveBorrowRequest(decodedText),
+                            new Promise<{ success: false; error: string }>((resolve) => {
+                                setTimeout(() => {
+                                    resolve({
+                                        success: false,
+                                        error: "Validation timed out. Please check connection and try again.",
+                                    })
+                                }, 15000)
+                            }),
+                        ])
+
+                        const res = timeoutResult
 
                         if (res.success) {
                             setSuccessMsg("Successfully Approved Student Request!")
                         } else {
-                            setError(res.error)
+                            setError(res.error || "Approval failed.")
                         }
                     } catch {
                         setError("Hardware / Server disruption while validating QR.")

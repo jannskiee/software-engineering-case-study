@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
-import { Package, Users, QrCode, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock } from "lucide-react"
+import { Package, Users, QrCode, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock, Maximize2, X } from "lucide-react"
+import { createBorrowApprovalQrPayload } from "@/lib/qr-payload"
 
 type ItemOption = {
     id: string;
@@ -19,6 +20,7 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [generatedQr, setGeneratedQr] = useState<string | null>(null)
+    const [showLargeQr, setShowLargeQr] = useState(false)
 
     // Form State
     const [selectedItems, setSelectedItems] = useState<{itemId: string, qty: number}[]>([])
@@ -72,13 +74,13 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                 return
             }
 
-            const payload = {
-                requestId: res.requestId,
-                timestamp: Date.now()
-            };
-            
-            setGeneratedQr(JSON.stringify(payload));
-            setStep(4);
+            if (!res.requestId) {
+                alert("Error: Request ID was not returned.")
+                return
+            }
+
+            setGeneratedQr(createBorrowApprovalQrPayload(res.requestId))
+            setStep(4)
         } catch (error) {
             console.error("Submission failed", error)
             alert("An unexpected error occurred.")
@@ -256,7 +258,7 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                     <div className="text-center py-6 animate-in zoom-in duration-500 flex flex-col items-center">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Pending</h3>
                         <p className="text-gray-500 mb-8 max-w-sm">
-                            Present this QR code to your Professor. Their scanner will digitally sign and approve this request.
+                            Present this QR code to your Professor within 30 minutes. Their scanner will digitally sign and approve this request.
                         </p>
                         
                         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border-2 border-dlsud-gold/20 mb-6 relative">
@@ -274,12 +276,41 @@ export function BorrowFormWizard({ availableItems, userId, userRole }: { availab
                             </div>
                         </div>
 
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="mb-4"
+                            onClick={() => setShowLargeQr(true)}
+                        >
+                            <Maximize2 className="w-4 h-4 mr-2" /> Enlarge QR
+                        </Button>
+
                         <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-full text-sm font-medium animate-pulse">
                             <Clock className="w-4 h-4" /> Wait for Professor to scan...
                         </div>
                     </div>
                 )}
             </CardContent>
+
+            {showLargeQr && generatedQr && (
+                <div className="fixed inset-0 z-[70] bg-black/70 p-4 flex items-center justify-center">
+                    <div className="w-full max-w-sm bg-white rounded-2xl p-5 text-center relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowLargeQr(false)}
+                            className="absolute right-3 top-3 p-1 rounded hover:bg-gray-100"
+                            aria-label="Close enlarged QR"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <h4 className="text-base font-semibold text-gray-900 mb-1">Approval QR</h4>
+                        <p className="text-xs text-gray-500 mb-4">Valid for 30 minutes from request creation.</p>
+                        <div className="inline-flex p-4 bg-white border rounded-xl shadow-sm">
+                            <QRCodeSVG value={generatedQr} size={280} level="H" fgColor="#004f32" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Navigation Footer */}
             {step < 4 && (
