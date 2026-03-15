@@ -9,9 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const errorMessages: Record<string, string> = {
+    Configuration: "Google sign-in is not configured correctly. Please check environment variables and OAuth redirect settings.",
     OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
+    OAuthCreateAccount: "Unable to create your account. Please try again or contact admin.",
     OAuthSignin: "An error occurred while signing in with Google. Please try again.",
     OAuthCallback: "An error occurred during the Google callback. Please try again.",
+    Callback: "Authentication callback failed. Please verify your Google OAuth redirect URI.",
     AccessDenied: "Access denied. Your account may not be authorized.",
     Verification: "The verification link has expired.",
     Default: "An unexpected error occurred. Please try again.",

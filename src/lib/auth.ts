@@ -52,45 +52,23 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async signIn({ user, account }: { user: any; account: any }) {
+        async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
             try {
-                if (account?.provider === "google" && user?.email) {
-                    // Check if user already exists in the database
-                    const existingUser = await db.user.findUnique({
-                        where: { email: user.email },
-                    });
-
-                    if (existingUser) {
-                        // Link the Google account if not already linked
-                        const existingAccount = await db.account.findFirst({
-                            where: {
-                                provider: "google",
-                                providerAccountId: account.providerAccountId,
-                            },
-                        });
-
-                        if (!existingAccount) {
-                            await db.account.create({
-                                data: {
-                                    userId: existingUser.id,
-                                    type: account.type,
-                                    provider: account.provider,
-                                    providerAccountId: account.providerAccountId,
-                                    access_token: account.access_token,
-                                    expires_at: account.expires_at,
-                                    id_token: account.id_token,
-                                    scope: account.scope,
-                                    token_type: account.token_type,
-                                },
-                            });
-                        }
+                if (account?.provider === "google") {
+                    if (!user?.email) {
+                        return false;
                     }
-                    // If user does not exist, the PrismaAdapter will create them automatically
+
+                    // Respect explicit unverified-email signals from Google payload when present.
+                    const googleProfile = profile as { email_verified?: boolean } | undefined;
+                    if (googleProfile?.email_verified === false) {
+                        return false;
+                    }
                 }
             } catch (err) {
                 console.error("Auth SignIn Error:", err);
             }
-            // Always allow sign-in — no blocking
+            // Let NextAuth + PrismaAdapter own account creation/linking flow.
             return true;
         },
 
