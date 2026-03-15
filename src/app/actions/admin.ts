@@ -193,3 +193,22 @@ export async function getAuditLogs(limit = 100) {
     })
 }
 
+export async function getAllRequests(limit = 200) {
+    const session = await getServerSession(authOptions)
+    if (!session || !session.user) throw new Error("Unauthorized")
+
+    const role = (session.user as any).role as string
+    if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
+
+    return db.borrowRequest.findMany({
+        take: Math.min(Math.max(limit, 1), 500),
+        include: {
+            student: { select: { name: true, schoolId: true } },
+            professor: { select: { name: true } },
+            items: { include: { item: true } },
+            groupMembers: true,
+        },
+        orderBy: { updatedAt: "desc" },
+    })
+}
+

@@ -1,10 +1,16 @@
 import { Activity, ShieldAlert, Users as UsersIcon, Database } from "lucide-react"
 import { getSuperAdminData } from "@/app/actions/superadmin"
+import { getAllRequests } from "@/app/actions/admin"
 import { Card, CardContent } from "@/components/ui/card"
 import { format } from "date-fns"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AllRequestsList } from "./AllRequestsList"
 
 export async function SuperAdminDashboard({ userId }: { userId: string }) {
-    const data = await getSuperAdminData()
+    const [data, allRequests] = await Promise.all([
+        getSuperAdminData(),
+        getAllRequests(),
+    ])
 
     return (
         <div className="space-y-6">
@@ -46,38 +52,46 @@ export async function SuperAdminDashboard({ userId }: { userId: string }) {
                 </Card>
             </div>
 
-            {/* Audit Logs */}
-            <div className="mt-8">
-                <CardsHeader title="Master Audit Trail" />
-                <Card className="overflow-hidden shadow-sm border-gray-100 mt-4">
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-gray-100">
-                            {data.auditLogs.map((log: any) => (
-                                <div key={log.id} className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start text-sm p-4 bg-white hover:bg-gray-50 transition-colors">
-                                    <div className="space-y-1">
-                                        <div className="flex gap-2 items-center">
-                                            <span className="font-bold text-gray-900 break-words">{log.actor.name || log.actor.email}</span>
-                                            <span className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider">
-                                                {log.action}
-                                            </span>
+            <Tabs defaultValue="audit" className="w-full mt-8">
+                <TabsList className="grid w-full grid-cols-2 bg-gray-100 p-1 rounded-xl h-auto">
+                    <TabsTrigger value="audit" className="rounded-lg px-2 py-2 text-xs sm:text-sm whitespace-normal data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-red-700">
+                        Master Audit Trail ({data.auditLogs.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="all" className="rounded-lg px-2 py-2 text-xs sm:text-sm whitespace-normal data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700">
+                        All Requests ({allRequests.length})
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="audit" className="mt-6">
+                    <Card className="overflow-hidden shadow-sm border-gray-100">
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-gray-100">
+                                {data.auditLogs.map((log: any) => (
+                                    <div key={log.id} className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start text-sm p-4 bg-white hover:bg-gray-50 transition-colors">
+                                        <div className="space-y-1">
+                                            <div className="flex gap-2 items-center">
+                                                <span className="font-bold text-gray-900 break-words">{log.actor.name || log.actor.email}</span>
+                                                <span className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider">
+                                                    {log.action}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 font-mono">Entity Target: {log.entityId || "SYSTEM"}</p>
                                         </div>
-                                        <p className="text-xs text-gray-500 font-mono">Entity Target: {log.entityId || "SYSTEM"}</p>
+                                        <div className="text-xs text-gray-400 font-medium shrink-0">
+                                            {format(new Date(log.createdAt), "MMM dd HH:mm:ss")}
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-gray-400 font-medium shrink-0">
-                                        {format(new Date(log.createdAt), "MMM dd HH:mm:ss")}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-6">
+                    <AllRequestsList requests={allRequests} />
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }
 
-function CardsHeader({ title }: { title: string }) {
-    return (
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-    )
-}
