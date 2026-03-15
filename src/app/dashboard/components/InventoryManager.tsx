@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { PlusCircle, PackageSearch, PackageOpen, LayoutGrid, List } from "lucide-react"
+import { useDeferredValue, useState } from "react"
+import { PlusCircle, PackageSearch, PackageOpen, LayoutGrid, List, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -36,7 +36,8 @@ export function InventoryManager({ initialItems }: { initialItems: any[] }) {
         }
     }
 
-    const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
+    const deferredSearch = useDeferredValue(search)
+    const filtered = items.filter(i => i.name.toLowerCase().includes(deferredSearch.toLowerCase()))
 
     return (
         <div className="space-y-6">
@@ -82,7 +83,13 @@ export function InventoryManager({ initialItems }: { initialItems: any[] }) {
                             <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-2">
                                 <Button type="button" variant="outline" onClick={() => setIsAdding(false)} className="w-full sm:w-auto">Cancel</Button>
                                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto bg-dlsud-green hover:bg-[#003823] text-white">
-                                    {isSaving ? "Saving to Database..." : "Publish to Catalog"}
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving to Database...
+                                        </>
+                                    ) : (
+                                        "Publish to Catalog"
+                                    )}
                                 </Button>
                             </div>
                         </form>

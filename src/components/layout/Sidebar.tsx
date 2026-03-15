@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch, Menu, X } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -15,6 +15,7 @@ interface SidebarProps {
 
 export function Sidebar({ user }: SidebarProps) {
     const pathname = usePathname()
+    const router = useRouter()
     const [isOpen, setIsOpen] = useState(false)
 
     useEffect(() => {
@@ -110,6 +111,9 @@ export function Sidebar({ user }: SidebarProps) {
                                     <Link
                                         key={item.href}
                                         href={item.href}
+                                        prefetch
+                                        onMouseEnter={() => router.prefetch(item.href)}
+                                        onTouchStart={() => router.prefetch(item.href)}
                                         className={`flex items-center gap-3 rounded-lg px-3 py-3 transition-colors ${isActive
                                             ? "bg-dlsud-gold text-[#004f32] font-semibold shadow-sm"
                                             : "text-gray-100 hover:bg-[#006341] hover:text-white"
@@ -135,6 +139,9 @@ export function Sidebar({ user }: SidebarProps) {
                                         <Link
                                             key={item.href}
                                             href={item.href}
+                                            prefetch
+                                            onMouseEnter={() => router.prefetch(item.href)}
+                                            onTouchStart={() => router.prefetch(item.href)}
                                             className={`flex items-center gap-3 rounded-lg px-3 py-3 transition-colors ${isActive
                                                 ? "bg-dlsud-gold text-[#004f32] font-semibold shadow-sm"
                                                 : "text-gray-100 hover:bg-[#006341] hover:text-white"

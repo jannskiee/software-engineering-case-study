@@ -2,16 +2,18 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { Package, XCircle, CheckCircle2 } from "lucide-react"
+import { Package, XCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
     const [queue, setQueue] = useState(initialQueue)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const [processingAction, setProcessingAction] = useState<"dispense" | "reject" | null>(null)
 
     const handleDispense = async (requestId: string) => {
         setProcessingId(requestId)
+        setProcessingAction("dispense")
         try {
             const { dispenseRequest } = await import("@/app/actions/admin")
             const res = await dispenseRequest(requestId)
@@ -26,6 +28,7 @@ export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
             alert("Network error processing dispense.")
         } finally {
             setProcessingId(null)
+            setProcessingAction(null)
         }
     }
 
@@ -33,6 +36,7 @@ export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
         if (!confirm("Are you sure you want to reject this approved request? The student will be notified.")) return
 
         setProcessingId(requestId)
+        setProcessingAction("reject")
         try {
             const { rejectRequest } = await import("@/app/actions/admin")
             const res = await rejectRequest(requestId, "Admin manual override.")
@@ -46,6 +50,7 @@ export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
             console.error(error)
         } finally {
             setProcessingId(null)
+            setProcessingAction(null)
         }
     }
 
@@ -117,7 +122,13 @@ export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
                                 onClick={() => handleDispense(req.id)}
                                 disabled={processingId !== null}
                             >
-                                {processingId === req.id ? "Dispensing..." : "Mark as Dispensed"}
+                                {processingId === req.id && processingAction === "dispense" ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Dispensing...
+                                    </>
+                                ) : (
+                                    "Mark as Dispensed"
+                                )}
                             </Button>
 
                             <Button
@@ -126,7 +137,15 @@ export function AdminDispensingList({ initialQueue }: { initialQueue: any[] }) {
                                 onClick={() => handleReject(req.id)}
                                 disabled={processingId !== null}
                             >
-                                <XCircle className="w-4 h-4 mr-2" /> Reject
+                                {processingId === req.id && processingAction === "reject" ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Rejecting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <XCircle className="w-4 h-4 mr-2" /> Reject
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </CardContent>

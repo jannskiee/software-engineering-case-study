@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { Package, RotateCcw, AlertTriangle } from "lucide-react"
+import { Package, RotateCcw, AlertTriangle, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -95,8 +95,15 @@ export function AdminReturnList({ initialQueue }: { initialQueue: any[] }) {
                                 onClick={() => handleReturn(req.id)}
                                 disabled={processingId !== null}
                             >
-                                <RotateCcw className="w-4 h-4" />
-                                {processingId === req.id ? "Processing..." : "Process Return"}
+                                {processingId === req.id ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RotateCcw className="w-4 h-4" /> Process Return
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </CardContent>

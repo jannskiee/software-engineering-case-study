@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ShieldAlert, ShieldCheck } from "lucide-react"
+import { ShieldAlert, ShieldCheck, Loader2 } from "lucide-react"
 
 export function RoleSelector({ userId, currentRole }: { userId: string, currentRole: string }) {
     const [role, setRole] = useState(currentRole)
@@ -48,6 +48,7 @@ export function RoleSelector({ userId, currentRole }: { userId: string, currentR
                     <option key={r} value={r}>{r}</option>
                 ))}
             </select>
+            {isUpdating && <Loader2 className="w-4 h-4 text-gray-500 animate-spin" aria-hidden="true" />}
         </div>
     )
 }

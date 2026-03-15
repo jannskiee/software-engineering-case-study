@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { Analytics } from "@vercel/analytics/next";
+import NextTopLoader from "nextjs-toploader";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -30,6 +31,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NextTopLoader
+          color="#004f32"
+          height={3}
+          showSpinner={false}
+          crawlSpeed={120}
+          speed={240}
+          easing="ease"
+        />
         <Providers>{children}</Providers>
         <Analytics />
       </body>

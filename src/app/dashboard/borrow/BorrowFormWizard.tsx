@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { QRCodeSVG } from "qrcode.react"
-import { Users, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock, Maximize2, X } from "lucide-react"
+import { Users, ArrowLeft, ArrowRight, CheckCircle2, Trash2, Clock, Maximize2, X, Loader2 } from "lucide-react"
 import { createBorrowApprovalQrPayload } from "@/lib/qr-payload"
 
 type ItemOption = {
@@ -365,7 +365,12 @@ export function BorrowFormWizard({ availableItems, userRole }: { availableItems:
                             disabled={isSubmitting || !roomNumber}
                         >
                             {isSubmitting
-                                ? (userRole === "PROFESSOR" ? "Submitting Auto-Approved Request..." : "Generating Secure Payload...")
+                                ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        {userRole === "PROFESSOR" ? "Submitting Auto-Approved Request..." : "Generating Secure Payload..."}
+                                    </>
+                                )
                                 : (userRole === "PROFESSOR" ? "Submit Auto-Approved Request" : "Generate Approval QR")}
                         </Button>
                     )}
