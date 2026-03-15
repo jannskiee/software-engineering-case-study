@@ -102,11 +102,21 @@ export async function submitBorrowRequest(data: BorrowInput) {
                 }
             })
 
+            if (borrowRequest.status === "APPROVED") {
+                // Professor-created requests are auto-approved, so reserve stock immediately.
+                for (const selectedItem of data.selectedItems) {
+                    await tx.inventoryItem.update({
+                        where: { id: selectedItem.itemId },
+                        data: { availableQty: { decrement: selectedItem.qty } }
+                    })
+                }
+            }
+
             // 3. Generate an Audit Log
             await tx.auditLog.create({
                 data: {
                     actorId: userId,
-                    action: role === "PROFESSOR" ? "CREATED_AND_AUTO_APPROVED_REQUEST" : "CREATED_BORROW_REQUEST",
+                    action: role === "PROFESSOR" ? "REQUEST_CREATED_AUTO_APPROVED" : "REQUEST_CREATED_PENDING",
                     entityId: borrowRequest.id
                 }
             })

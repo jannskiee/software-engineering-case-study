@@ -61,23 +61,6 @@ export async function dispenseRequest(requestId: string) {
             if (!request) throw new Error("Request not found");
             if (request.status !== "APPROVED") throw new Error(`Cannot dispense. Status is ${request.status}`);
 
-            // The ULTRATHINK "Hoarding Concurrency" Edge Case Fix:
-            // We ONLY deduct inventory at physical dispensing time. We MUST verify stock right here.
-            for (const reqItem of request.items) {
-                const stockItem = await tx.inventoryItem.findUnique({ where: { id: reqItem.itemId } })
-                if (!stockItem || stockItem.availableQty < reqItem.quantity) {
-                    throw new Error(`CRITICAL: Out of Stock for ${stockItem?.name || 'Unknown Item'}. Cannot Dispense.`);
-                }
-            }
-
-            // Deduct Inventory
-            for (const reqItem of request.items) {
-                await tx.inventoryItem.update({
-                    where: { id: reqItem.itemId },
-                    data: { availableQty: { decrement: reqItem.quantity } }
-                })
-            }
-
             // Mark as Dispensed
             const updated = await tx.borrowRequest.update({
                 where: { id: requestId },
@@ -88,7 +71,7 @@ export async function dispenseRequest(requestId: string) {
             await tx.auditLog.create({
                 data: {
                     actorId: adminId,
-                    action: "DISPENSED_EQUIPMENT",
+                    action: "REQUEST_STATUS_DISPENSED",
                     entityId: requestId
                 }
             });
@@ -114,12 +97,35 @@ export async function rejectRequest(requestId: string, reason: string) {
 
     try {
         const result = await db.$transaction(async (tx) => {
+            const existing = await tx.borrowRequest.findUnique({
+                where: { id: requestId },
+                include: { items: true },
+            })
+
+            if (!existing) {
+                throw new Error("Request not found")
+            }
+
+            if (!["PENDING", "APPROVED"].includes(existing.status)) {
+                throw new Error(`Cannot reject request in ${existing.status} status`)
+            }
+
+            if (existing.status === "APPROVED") {
+                // Approved requests already reserve stock; releasing on rejection prevents inventory drift.
+                for (const reqItem of existing.items) {
+                    await tx.inventoryItem.update({
+                        where: { id: reqItem.itemId },
+                        data: { availableQty: { increment: reqItem.quantity } },
+                    })
+                }
+            }
+
             const req = await tx.borrowRequest.update({
                 where: { id: requestId },
                 data: { status: "REJECTED" }
             })
             await tx.auditLog.create({
-                data: { actorId: adminId, action: `REJECTED_REQUEST: ${reason}`, entityId: requestId }
+                data: { actorId: adminId, action: `REQUEST_STATUS_REJECTED: ${reason}`, entityId: requestId }
             })
             return req
         })
@@ -158,7 +164,7 @@ export async function returnRequest(requestId: string) {
             })
 
             await tx.auditLog.create({
-                data: { actorId: adminId, action: "PROCESSED_RETURN", entityId: requestId }
+                data: { actorId: adminId, action: "REQUEST_STATUS_RETURNED", entityId: requestId }
             })
             return updated
         })
@@ -168,3 +174,22 @@ export async function returnRequest(requestId: string) {
         return { success: false, error: error.message }
     }
 }
+
+export async function getAuditLogs(limit = 100) {
+    const session = await getServerSession(authOptions)
+    if (!session || !session.user) throw new Error("Unauthorized")
+
+    const role = (session.user as any).role as string
+    if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
+
+    return db.auditLog.findMany({
+        take: Math.min(Math.max(limit, 1), 300),
+        include: {
+            actor: {
+                select: { name: true, email: true, role: true },
+            },
+        },
+        orderBy: { createdAt: "desc" },
+    })
+}
+

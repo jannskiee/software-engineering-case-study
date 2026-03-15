@@ -1,10 +1,39 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ExportPdfButton } from "@/components/ui/ExportPdfButton"
+import { db } from "@/lib/db"
+import { getAuditLogs } from "@/app/actions/admin"
 
-// Logs currently empty
+function getStatusFromAction(action: string, fallback?: string | null) {
+    if (action.includes("PENDING")) return "PENDING"
+    if (action.includes("APPROVED")) return "APPROVED"
+    if (action.includes("DISPENSED")) return "DISPENSED"
+    if (action.includes("RETURNED")) return "RETURNED"
+    if (action.includes("REJECTED")) return "REJECTED"
+    if (action.includes("EXPIRED")) return "EXPIRED"
+    return fallback || "INFO"
+}
 
-export default function LogsPage() {
+function getStatusBadgeVariant(status: string) {
+    if (status === "APPROVED" || status === "RETURNED") return "default"
+    if (status === "PENDING") return "secondary"
+    if (status === "REJECTED" || status === "EXPIRED") return "destructive"
+    return "outline"
+}
+
+export default async function LogsPage() {
+    const logs = await getAuditLogs(150)
+    const requestIds = Array.from(new Set(logs.map((log) => log.entityId).filter((id): id is string => Boolean(id))))
+
+    const requestStatuses = requestIds.length > 0
+        ? await db.borrowRequest.findMany({
+            where: { id: { in: requestIds } },
+            select: { id: true, status: true },
+        })
+        : []
+
+    const requestStatusMap = new Map(requestStatuses.map((request) => [request.id, request.status]))
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -36,11 +65,32 @@ export default function LogsPage() {
                                 </tr>
                             </thead>
                             <tbody className="[&_tr:last-child]:border-0">
-                                <tr className="border-b transition-colors bg-white">
-                                    <td colSpan={6} className="p-8 text-center align-middle text-gray-500 font-medium">
-                                        No audit logs available at this time.
-                                    </td>
-                                </tr>
+                                {logs.length === 0 ? (
+                                    <tr className="border-b transition-colors bg-white">
+                                        <td colSpan={6} className="p-8 text-center align-middle text-gray-500 font-medium">
+                                            No audit logs available at this time.
+                                        </td>
+                                    </tr>
+                                ) : logs.map((log) => {
+                                    const currentRequestStatus = log.entityId ? requestStatusMap.get(log.entityId) : null
+                                    const displayStatus = getStatusFromAction(log.action, currentRequestStatus)
+
+                                    return (
+                                        <tr key={log.id} className="border-b transition-colors bg-white hover:bg-gray-50/50">
+                                            <td className="p-4 text-xs text-gray-500 font-mono">{log.id.slice(0, 8)}...</td>
+                                            <td className="p-4 text-sm text-gray-800">{log.action}</td>
+                                            <td className="p-4 text-sm text-gray-700">
+                                                {log.actor?.name || "Unknown User"}
+                                                <div className="text-xs text-gray-500">{log.actor?.email || "No email"}</div>
+                                            </td>
+                                            <td className="p-4 text-xs text-gray-600 font-mono">{log.entityId || "N/A"}</td>
+                                            <td className="p-4">
+                                                <Badge variant={getStatusBadgeVariant(displayStatus)}>{displayStatus}</Badge>
+                                            </td>
+                                            <td className="p-4 text-xs text-gray-600">{new Date(log.createdAt).toLocaleString()}</td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>

@@ -22,7 +22,6 @@ export async function getActiveRequests() {
     return db.borrowRequest.findMany({
         where: {
             studentId: userId,
-            status: { in: ["PENDING", "APPROVED"] }
         },
         include: {
             items: {
@@ -30,6 +29,39 @@ export async function getActiveRequests() {
             }
         },
         orderBy: { createdAt: 'desc' }
+    })
+}
+
+export async function getProfessorRequestHistory() {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.user) {
+        throw new Error("Unauthorized")
+    }
+
+    const user = session.user as { id?: string; role?: string }
+    const userId = user.id
+    const role = user.role
+
+    if (!userId || role !== "PROFESSOR") {
+        throw new Error("Unauthorized role")
+    }
+
+    return db.borrowRequest.findMany({
+        where: {
+            OR: [
+                { studentId: userId },
+                { professorId: userId },
+            ],
+        },
+        include: {
+            student: { select: { name: true, schoolId: true } },
+            items: {
+                include: { item: true },
+            },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 30,
     })
 }
 
@@ -74,7 +106,7 @@ export async function cancelBorrowRequest(requestId: string) {
             await tx.auditLog.create({
                 data: {
                     actorId: userId,
-                    action: "STUDENT_CANCELLED_REQUEST",
+                    action: "REQUEST_STATUS_REJECTED: STUDENT_CANCELLED_REQUEST",
                     entityId: requestId,
                 },
             })

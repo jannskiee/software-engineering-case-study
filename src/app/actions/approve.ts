@@ -34,6 +34,7 @@ export async function approveBorrowRequest(payloadStr: string) {
         const result = await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
+                include: { items: true },
             })
 
             if (!request) throw new Error("Request not found.")
@@ -49,12 +50,26 @@ export async function approveBorrowRequest(payloadStr: string) {
                 await tx.auditLog.create({
                     data: {
                         actorId: professorId,
-                        action: "REQUEST_EXPIRED_ON_QR_SCAN",
+                        action: "REQUEST_STATUS_EXPIRED",
                         entityId: requestId,
                     },
                 })
 
                 throw new Error("QR code expired (30 minutes). Ask the student to submit a new request.")
+            }
+
+            for (const reqItem of request.items) {
+                const stockItem = await tx.inventoryItem.findUnique({ where: { id: reqItem.itemId } })
+                if (!stockItem || stockItem.availableQty < reqItem.quantity) {
+                    throw new Error(`Insufficient stock for ${stockItem?.name || "an item"}.`)
+                }
+            }
+
+            for (const reqItem of request.items) {
+                await tx.inventoryItem.update({
+                    where: { id: reqItem.itemId },
+                    data: { availableQty: { decrement: reqItem.quantity } },
+                })
             }
 
             const updated = await tx.borrowRequest.update({
@@ -68,7 +83,7 @@ export async function approveBorrowRequest(payloadStr: string) {
             await tx.auditLog.create({
                 data: {
                     actorId: professorId,
-                    action: "APPROVED_STUDENT_REQUEST",
+                    action: "REQUEST_STATUS_APPROVED",
                     entityId: requestId,
                 },
             })

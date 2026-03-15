@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ComponentType } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { format } from "date-fns"
-import { CheckCircle2, Package, QrCode, Maximize2, X, Loader2 } from "lucide-react"
+import { CheckCircle2, Package, QrCode, Maximize2, X, Loader2, Clock3, Truck, Undo2, Ban } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cancelBorrowRequest, getActiveRequests } from "@/app/actions/requests"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,45 @@ export function StudentActiveRequestsList({ initialRequests }: { initialRequests
     const [requests, setRequests] = useState<BorrowRequest[]>(initialRequests)
     const [expandedQr, setExpandedQr] = useState<{ requestId: string; payload: string } | null>(null)
     const [cancellingId, setCancellingId] = useState<string | null>(null)
+
+    const statusMeta: Record<string, { bannerClass: string; label: string; Icon: ComponentType<{ className?: string }>; hint: string }> = {
+        PENDING: {
+            bannerClass: "bg-amber-500",
+            label: "Awaiting Professor Approval",
+            Icon: Clock3,
+            hint: "Show this QR to your professor for approval.",
+        },
+        APPROVED: {
+            bannerClass: "bg-dlsud-green",
+            label: "Approved - Ready for Admin Dispensing",
+            Icon: CheckCircle2,
+            hint: "Proceed to the dispensing desk to claim your item.",
+        },
+        DISPENSED: {
+            bannerClass: "bg-blue-600",
+            label: "Dispensed - Currently Borrowed",
+            Icon: Truck,
+            hint: "Return the item to complete this request.",
+        },
+        RETURNED: {
+            bannerClass: "bg-emerald-700",
+            label: "Returned - Completed",
+            Icon: Undo2,
+            hint: "Request completed successfully.",
+        },
+        REJECTED: {
+            bannerClass: "bg-red-600",
+            label: "Rejected / Cancelled",
+            Icon: Ban,
+            hint: "This request is closed.",
+        },
+        EXPIRED: {
+            bannerClass: "bg-gray-600",
+            label: "Expired",
+            Icon: Ban,
+            hint: "Submit a new request to continue.",
+        },
+    }
 
     // Ultra-short polling to simulate NextJS Realtime Pub/Sub
     useEffect(() => {
@@ -53,7 +92,11 @@ export function StudentActiveRequestsList({ initialRequests }: { initialRequests
                 return
             }
 
-            setRequests((prev) => prev.filter((request) => request.id !== requestId))
+            setRequests((prev) => prev.map((request) => (
+                request.id === requestId
+                    ? { ...request, status: "REJECTED" }
+                    : request
+            )))
         } catch (error) {
             console.error("Failed to cancel request", error)
             alert("Failed to cancel request.")
@@ -67,14 +110,16 @@ export function StudentActiveRequestsList({ initialRequests }: { initialRequests
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {requests.map((req: BorrowRequest) => {
                     const qrPayload = createBorrowApprovalQrPayload(req.id)
+                    const meta = statusMeta[req.status] || statusMeta.EXPIRED
+                    const StatusIcon = meta.Icon
 
                 return (
                     <Card key={req.id} className="overflow-hidden shadow-sm border-gray-200">
                         {/* Header Banner */}
-                        <div className={`px-4 py-3 text-sm font-medium flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center text-white ${req.status === 'PENDING' ? 'bg-amber-500' : 'bg-dlsud-green'}`}>
+                        <div className={`px-4 py-3 text-sm font-medium flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center text-white ${meta.bannerClass}`}>
                             <span className="flex items-center gap-2">
-                                {req.status === 'PENDING' ? <QrCode className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                                {req.status === 'PENDING' ? 'Awaiting Professor Approval' : 'Approved! Ready for Pickup'}
+                                <StatusIcon className="w-4 h-4" />
+                                {meta.label}
                             </span>
                             <span className="text-xs opacity-90">{format(new Date(req.createdAt), 'MMM dd, h:mm a')}</span>
                         </div>
@@ -129,13 +174,21 @@ export function StudentActiveRequestsList({ initialRequests }: { initialRequests
                                             </Button>
                                         </div>
                                     </div>
-                                ) : (
+                                ) : req.status === 'APPROVED' ? (
                                     <div className="text-center opacity-80 flex flex-col items-center">
                                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
                                             <Package className="w-8 h-8 text-dlsud-green" />
                                         </div>
                                         <p className="text-xs font-medium text-gray-600">Please claim this</p>
                                         <p className="text-xs font-medium text-gray-600">from the Dispensing Admin</p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center opacity-80 flex flex-col items-center gap-2 px-2">
+                                        <div className="w-14 h-14 bg-white rounded-full border flex items-center justify-center">
+                                            <StatusIcon className="w-7 h-7 text-gray-600" />
+                                        </div>
+                                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{req.status}</p>
+                                        <p className="text-xs text-gray-500 max-w-[180px]">{meta.hint}</p>
                                     </div>
                                 )}
                             </div>
