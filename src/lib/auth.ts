@@ -52,22 +52,7 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async signIn({ user, account, profile }: { user: any; account: any; profile?: any }) {
-            try {
-                if (account?.provider === "google") {
-                    if (!user?.email) {
-                        return false;
-                    }
-
-                    // Respect explicit unverified-email signals from Google payload when present.
-                    const googleProfile = profile as { email_verified?: boolean } | undefined;
-                    if (googleProfile?.email_verified === false) {
-                        return false;
-                    }
-                }
-            } catch (err) {
-                console.error("Auth SignIn Error:", err);
-            }
+        async signIn() {
             // Let NextAuth + PrismaAdapter own account creation/linking flow.
             return true;
         },
