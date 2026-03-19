@@ -107,48 +107,38 @@ export function ProfessorQrScanner() {
                         await stopScanner()
 
                         const { approveBorrowRequest } = await import("@/app/actions/approve")
-                        const approvalPromise: Promise<ApprovalResult> = approveBorrowRequest(decodedText)
-                            .then((result: unknown) => {
-                                if (result && typeof result === "object" && "success" in result) {
-                                    const typed = result as { success: unknown; error?: unknown }
-                                    return {
-                                        success: Boolean(typed.success),
-                                        error: typeof typed.error === "string" ? typed.error : undefined,
-                                    }
-                                }
 
-                                return {
-                                    success: false,
-                                    error: "Invalid approval response from server.",
-                                }
-                            })
-                            .catch((err: unknown) => {
-                                const message = err instanceof Error ? err.message : "Approval request failed."
-                                return { success: false, error: message }
-                            })
+                        let result: { success: boolean; error?: string } | null = null
 
-                        const timeoutResult = await Promise.race([
-                            approvalPromise,
-                            new Promise<{ success: false; error: string }>((resolve) => {
-                                setTimeout(() => {
-                                    resolve({
-                                        success: false,
-                                        error: "Validation timed out. Please check connection and try again.",
-                                    })
-                                }, 15000)
-                            }),
-                        ])
+                        try {
+                            // Direct await — the server action now always returns a plain object
+                            result = await approveBorrowRequest(decodedText)
+                        } catch (actionErr: unknown) {
+                            const msg = actionErr instanceof Error ? actionErr.message : "Server error during approval."
+                            if (!unmountedRef.current) {
+                                setError(msg)
+                                setIsProcessing(false)
+                            }
+                            return
+                        }
 
-                        const res = timeoutResult
+                        // Guard: result must be a plain object with a boolean success field
+                        if (!result || typeof result !== "object" || typeof result.success !== "boolean") {
+                            if (!unmountedRef.current) {
+                                setError("Unexpected response from server. Please try again.")
+                                setIsProcessing(false)
+                            }
+                            return
+                        }
 
-                        if (res.success) {
+                        if (result.success) {
                             setSuccessMsg("Successfully Approved Student Request!")
                         } else {
-                            setError(res.error || "Approval failed.")
+                            setError(result.error || "Approval failed. Please try again.")
                         }
                     } catch (err: unknown) {
-                        const message = err instanceof Error ? err.message : "Hardware / Server disruption while validating QR."
-                        setError(message)
+                        const message = err instanceof Error ? err.message : "An unexpected error occurred."
+                        if (!unmountedRef.current) setError(message)
                     } finally {
                         if (!unmountedRef.current) {
                             setIsProcessing(false)
