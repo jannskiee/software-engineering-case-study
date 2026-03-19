@@ -11,23 +11,31 @@ export default async function BorrowPage() {
         redirect("/login")
     }
 
-    const role = (session.user as any).role as string;
-    
+    const role = (session.user as any).role as string
+
     if (role !== "STUDENT" && role !== "PROFESSOR") {
         redirect("/dashboard")
     }
+
+    const userId = (session.user as any).id as string
+
+    // Fetch user profile for pre-filling identity fields
+    const userProfile = await db.user.findUnique({
+        where: { id: userId },
+        select: { name: true, schoolId: true },
+    })
 
     // Fetch only items that are ACTIVE and have quantity available
     const availableItems = await db.inventoryItem.findMany({
         where: {
             status: "ACTIVE",
-            availableQty: { gt: 0 }
+            availableQty: { gt: 0 },
         },
         select: {
             id: true,
             name: true,
-            availableQty: true
-        }
+            availableQty: true,
+        },
     })
 
     return (
@@ -37,11 +45,16 @@ export default async function BorrowPage() {
                 <p className="text-gray-500 mt-1 text-sm">
                     {role === "PROFESSOR"
                         ? "Professor requests are auto-approved and sent directly to dispensing."
-                        : "Fill out the form to generate your digital approval QR code."}
+                        : "Fill out the form to generate your digital approval QR code. Valid for 10 minutes."}
                 </p>
             </div>
 
-            <BorrowFormWizard availableItems={availableItems} userRole={role} />
+            <BorrowFormWizard
+                availableItems={availableItems}
+                userRole={role}
+                userName={userProfile?.name || undefined}
+                userSchoolId={userProfile?.schoolId || undefined}
+            />
         </div>
     )
 }

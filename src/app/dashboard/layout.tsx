@@ -17,14 +17,17 @@ export default async function DashboardLayout({
     const user = {
         email: session.user.email as string,
         role: (session.user as any).role as string,
+        name: session.user.name || undefined,
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 flex">
+            {/* Sidebar Navigation */}
             <Sidebar user={user} />
 
-            <main className="flex-1 min-h-screen transition-all lg:ml-64 print:ml-0">
-                <div className="mx-auto max-w-7xl px-4 pb-6 pt-20 sm:px-6 sm:pb-8 lg:px-8 lg:pt-8">
+            {/* Main Content Area */}
+            <main className="flex-1 lg:ml-64 min-h-screen transition-all print:ml-0">
+                <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl pt-16 lg:pt-8">
                     {children}
                 </div>
             </main>

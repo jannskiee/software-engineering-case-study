@@ -1,4 +1,4 @@
-export const QR_APPROVAL_TTL_MS = 30 * 60 * 1000
+export const QR_APPROVAL_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
 export type BorrowApprovalQrPayload = {
     v: 1

@@ -13,32 +13,38 @@ export async function approveBorrowRequest(payloadStr: string) {
         return { success: false, error: "Session expired. Please log in again." }
     }
 
-    const user = session.user as { id?: string; role?: string }
+    const user = session.user as { id?: string; role?: string; name?: string; email?: string }
     const professorId = user.id
     const role = user.role
+    const professorName = user.name || user.email || "Unknown Professor"
 
     if (!professorId || !role) {
         return { success: false, error: "Invalid session. Please sign in again." }
     }
 
     if (role !== "PROFESSOR" && role !== "SUPERADMIN") {
-        return { success: false, error: "Only Professors can approve requests." }
+        return { success: false, error: "Only Professors can approve student requests." }
     }
 
     const requestId = extractBorrowApprovalRequestId(payloadStr)
     if (!requestId) {
-        return { success: false, error: "Invalid QR Code payload." }
+        return { success: false, error: "Invalid QR Code payload. Please ask the student to generate a new request." }
     }
 
     try {
         const result = await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
-                include: { items: true },
+                include: {
+                    items: { include: { item: true } },
+                    student: { select: { name: true, email: true } },
+                    groupMembers: true,
+                },
             })
 
-            if (!request) throw new Error("Request not found.")
-            if (request.status !== "PENDING") throw new Error(`Request is already ${request.status}.`)
+            if (!request) throw new Error("Request not found. QR code may be outdated.")
+            if (request.status !== "PENDING")
+                throw new Error(`Request is already ${request.status}. No action needed.`)
 
             const ageMs = Date.now() - new Date(request.createdAt).getTime()
             if (ageMs > QR_APPROVAL_TTL_MS) {
@@ -46,25 +52,26 @@ export async function approveBorrowRequest(payloadStr: string) {
                     where: { id: requestId },
                     data: { status: "EXPIRED" },
                 })
-
                 await tx.auditLog.create({
                     data: {
                         actorId: professorId,
+                        actorRole: role,
                         action: "REQUEST_STATUS_EXPIRED",
                         entityId: requestId,
+                        details: `Professor ${professorName} scanned QR for request ID ${requestId.slice(0, 8)} but it had already expired (>10 minutes). Request has been marked EXPIRED.`,
                     },
                 })
-
-                throw new Error("QR code expired (30 minutes). Ask the student to submit a new request.")
+                throw new Error("QR code has expired (10 minutes limit). Ask the student to submit a new request.")
             }
 
+            // Check stock
             for (const reqItem of request.items) {
-                const stockItem = await tx.inventoryItem.findUnique({ where: { id: reqItem.itemId } })
-                if (!stockItem || stockItem.availableQty < reqItem.quantity) {
-                    throw new Error(`Insufficient stock for ${stockItem?.name || "an item"}.`)
+                if (!reqItem.item || reqItem.item.availableQty < reqItem.quantity) {
+                    throw new Error(`Insufficient stock for ${reqItem.item?.name || "an item"}.`)
                 }
             }
 
+            // Deduct stock
             for (const reqItem of request.items) {
                 await tx.inventoryItem.update({
                     where: { id: reqItem.itemId },
@@ -72,19 +79,28 @@ export async function approveBorrowRequest(payloadStr: string) {
                 })
             }
 
+            // Approve
             const updated = await tx.borrowRequest.update({
                 where: { id: requestId },
-                data: {
-                    status: "APPROVED",
-                    professorId,
-                },
+                data: { status: "APPROVED", professorId },
             })
+
+            // Build rich audit details
+            const itemsSummary = request.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
+            const requesterName = request.studentName || request.student?.name || "Unknown Student"
+            const requesterSchoolId = request.studentSchoolId || "N/A"
+            let memberInfo = ""
+            if (request.isGroup && request.groupMembers.length > 0) {
+                memberInfo = ` | Group members: ${request.groupMembers.map((m) => `${m.studentName} (${m.schoolIdNumber})`).join(", ")}`
+            }
 
             await tx.auditLog.create({
                 data: {
                     actorId: professorId,
+                    actorRole: role,
                     action: "REQUEST_STATUS_APPROVED",
                     entityId: requestId,
+                    details: `Professor ${professorName} approved QR request from ${requesterName} (ID: ${requesterSchoolId}). Items: ${itemsSummary}. Room: ${request.roomNumber}${memberInfo}`,
                 },
             })
 

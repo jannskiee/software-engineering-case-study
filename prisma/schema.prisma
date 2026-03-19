@@ -106,14 +106,18 @@ model BorrowRequest {
   professor     User?    @relation("ProfessorApprovals", fields: [professorId], references: [id])
   
   // Data
-  roomNumber    String
-  status        RequestStatus @default(PENDING)
-  isGroup       Boolean  @default(false)
-  
+  roomNumber       String
+  status           RequestStatus @default(PENDING)
+  isGroup          Boolean  @default(false)
+
+  // Individual requester identity (denormalized for audit trail clarity)
+  studentName      String?   // Captured at request time
+  studentSchoolId  String?   // Captured at request time
+
   // Details
   groupMembers  GroupMember[]
   items         BorrowRequestItem[]
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -142,12 +146,14 @@ model GroupMember {
 
 model AuditLog {
   id            String   @id @default(cuid())
-  
+
   actorId       String
   actor         User     @relation("UserAuditLogs", fields: [actorId], references: [id])
-  
+  actorRole     String   @default("UNKNOWN") // Role at time of action
+
   action        String   // e.g., "CREATED_REQUEST", "DISPENSED_ITEM"
-  entityId      String?  // References the request or item ID vaguely
-  
+  entityId      String?  // References the request or item ID
+  details       String?  @db.Text // Rich human-readable description of the action
+
   createdAt     DateTime @default(now())
 }

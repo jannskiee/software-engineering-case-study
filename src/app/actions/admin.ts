@@ -8,81 +8,93 @@ import { revalidatePath } from "next/cache"
 export async function getDispensingQueue() {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
-    
-    const role = (session.user as any).role as string;
+
+    const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
 
     return await db.borrowRequest.findMany({
         where: { status: "APPROVED" },
         include: {
-            student: { select: { name: true, schoolId: true } },
-            professor: { select: { name: true } },
+            student: { select: { name: true, email: true, schoolId: true } },
+            professor: { select: { name: true, email: true } },
             items: { include: { item: true } },
-            groupMembers: true
+            groupMembers: true,
         },
-        orderBy: { updatedAt: "asc" }
-    });
+        orderBy: { updatedAt: "asc" },
+    })
 }
 
 export async function getReturnQueue() {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
-    
-    const role = (session.user as any).role as string;
+
+    const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
 
     return await db.borrowRequest.findMany({
         where: { status: "DISPENSED" },
         include: {
-            student: { select: { name: true, schoolId: true } },
-            professor: { select: { name: true } },
+            student: { select: { name: true, email: true, schoolId: true } },
+            professor: { select: { name: true, email: true } },
             items: { include: { item: true } },
-            groupMembers: true
+            groupMembers: true,
         },
-        orderBy: { updatedAt: "asc" }
-    });
+        orderBy: { updatedAt: "asc" },
+    })
 }
 
 export async function dispenseRequest(requestId: string) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
-    
-    const adminId = (session.user as any).id as string;
-    const role = (session.user as any).role as string;
+
+    const adminId = (session.user as any).id as string
+    const adminName = (session.user as any).name || session.user.email || "Admin"
+    const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
 
     try {
         const result = await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
-                include: { items: true }
-            });
+                include: {
+                    items: { include: { item: true } },
+                    student: { select: { name: true } },
+                    professor: { select: { name: true } },
+                    groupMembers: true,
+                },
+            })
 
-            if (!request) throw new Error("Request not found");
-            if (request.status !== "APPROVED") throw new Error(`Cannot dispense. Status is ${request.status}`);
+            if (!request) throw new Error("Request not found")
+            if (request.status !== "APPROVED")
+                throw new Error(`Cannot dispense. Status is ${request.status}`)
 
-            // Mark as Dispensed
             const updated = await tx.borrowRequest.update({
                 where: { id: requestId },
-                data: { status: "DISPENSED" }
-            });
+                data: { status: "DISPENSED" },
+            })
 
-            // Audit
+            const itemsSummary = request.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
+            const requesterName = request.studentName || request.student?.name || "Unknown"
+            const requesterSchoolId = request.studentSchoolId || "N/A"
+            const approverName = request.professor?.name || "Auto-Approved"
+
             await tx.auditLog.create({
                 data: {
                     actorId: adminId,
+                    actorRole: role,
                     action: "REQUEST_STATUS_DISPENSED",
-                    entityId: requestId
-                }
-            });
+                    entityId: requestId,
+                    details: `${role} ${adminName} physically dispensed items to ${requesterName} (${requesterSchoolId}). Items: ${itemsSummary}. Room: ${request.roomNumber}. Approved by: ${approverName}.`,
+                },
+            })
 
-            return updated;
+            return updated
         })
 
         revalidatePath("/dashboard")
         return { success: true, result }
     } catch (error: any) {
-        console.error("Dispense Transaction Failed:", error);
+        console.error("Dispense Transaction Failed:", error)
         return { success: false, error: error.message || "Dispense Failed" }
     }
 }
@@ -90,28 +102,28 @@ export async function dispenseRequest(requestId: string) {
 export async function rejectRequest(requestId: string, reason: string) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
-    
-    const adminId = (session.user as any).id as string;
-    const role = (session.user as any).role as string;
+
+    const adminId = (session.user as any).id as string
+    const adminName = (session.user as any).name || session.user.email || "Admin"
+    const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized")
 
     try {
         const result = await db.$transaction(async (tx) => {
             const existing = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
-                include: { items: true },
+                include: {
+                    items: { include: { item: true } },
+                    student: { select: { name: true } },
+                },
             })
 
-            if (!existing) {
-                throw new Error("Request not found")
-            }
-
+            if (!existing) throw new Error("Request not found")
             if (!["PENDING", "APPROVED"].includes(existing.status)) {
                 throw new Error(`Cannot reject request in ${existing.status} status`)
             }
 
             if (existing.status === "APPROVED") {
-                // Approved requests already reserve stock; releasing on rejection prevents inventory drift.
                 for (const reqItem of existing.items) {
                     await tx.inventoryItem.update({
                         where: { id: reqItem.itemId },
@@ -122,10 +134,20 @@ export async function rejectRequest(requestId: string, reason: string) {
 
             const req = await tx.borrowRequest.update({
                 where: { id: requestId },
-                data: { status: "REJECTED" }
+                data: { status: "REJECTED" },
             })
+
+            const itemsSummary = existing.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
+            const requesterName = existing.studentName || existing.student?.name || "Unknown"
+
             await tx.auditLog.create({
-                data: { actorId: adminId, action: `REQUEST_STATUS_REJECTED: ${reason}`, entityId: requestId }
+                data: {
+                    actorId: adminId,
+                    actorRole: role,
+                    action: `REQUEST_STATUS_REJECTED`,
+                    entityId: requestId,
+                    details: `${role} ${adminName} rejected request from ${requesterName}. Items: ${itemsSummary}. Rejection reason: ${reason}. Stock restored (if applicable).`,
+                },
             })
             return req
         })
@@ -139,32 +161,47 @@ export async function rejectRequest(requestId: string, reason: string) {
 export async function returnRequest(requestId: string) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
-    
-    const adminId = (session.user as any).id as string;
-    const role = (session.user as any).role as string;
+
+    const adminId = (session.user as any).id as string
+    const adminName = (session.user as any).name || session.user.email || "Admin"
+    const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized")
 
     try {
         const result = await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
-                where: { id: requestId }, include: { items: true }
+                where: { id: requestId },
+                include: {
+                    items: { include: { item: true } },
+                    student: { select: { name: true } },
+                },
             })
-            if (!request || request.status !== "DISPENSED") throw new Error("Invalid request status")
+            if (!request || request.status !== "DISPENSED")
+                throw new Error("Invalid request status — only DISPENSED requests can be returned")
 
-            // Restore Inventory
             for (const reqItem of request.items) {
                 await tx.inventoryItem.update({
                     where: { id: reqItem.itemId },
-                    data: { availableQty: { increment: reqItem.quantity } }
+                    data: { availableQty: { increment: reqItem.quantity } },
                 })
             }
 
             const updated = await tx.borrowRequest.update({
-                where: { id: requestId }, data: { status: "RETURNED" }
+                where: { id: requestId },
+                data: { status: "RETURNED" },
             })
 
+            const itemsSummary = request.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
+            const requesterName = request.studentName || request.student?.name || "Unknown"
+
             await tx.auditLog.create({
-                data: { actorId: adminId, action: "REQUEST_STATUS_RETURNED", entityId: requestId }
+                data: {
+                    actorId: adminId,
+                    actorRole: role,
+                    action: "REQUEST_STATUS_RETURNED",
+                    entityId: requestId,
+                    details: `${role} ${adminName} confirmed physical return of items from ${requesterName}. Items returned to inventory: ${itemsSummary}. Inventory stock restored.`,
+                },
             })
             return updated
         })
@@ -175,7 +212,7 @@ export async function returnRequest(requestId: string) {
     }
 }
 
-export async function getAuditLogs(limit = 100) {
+export async function getAuditLogs(limit = 200) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
 
@@ -183,7 +220,7 @@ export async function getAuditLogs(limit = 100) {
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
 
     return db.auditLog.findMany({
-        take: Math.min(Math.max(limit, 1), 300),
+        take: Math.min(Math.max(limit, 1), 500),
         include: {
             actor: {
                 select: { name: true, email: true, role: true },
@@ -203,12 +240,11 @@ export async function getAllRequests(limit = 200) {
     return db.borrowRequest.findMany({
         take: Math.min(Math.max(limit, 1), 500),
         include: {
-            student: { select: { name: true, schoolId: true } },
-            professor: { select: { name: true } },
+            student: { select: { name: true, email: true, schoolId: true } },
+            professor: { select: { name: true, email: true } },
             items: { include: { item: true } },
             groupMembers: true,
         },
         orderBy: { updatedAt: "desc" },
     })
 }
-
