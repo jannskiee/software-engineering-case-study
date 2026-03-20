@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch, Menu, X, Activity } from "lucide-react"
+import { LayoutDashboard, FileText, User, Users, LogOut, PackageSearch, Menu, X, Activity, Boxes } from "lucide-react"
 import { useEffect, useState } from "react"
 
 interface SidebarProps {
@@ -29,6 +29,12 @@ export function Sidebar({ user }: SidebarProps) {
             href: "/dashboard",
             icon: LayoutDashboard,
             roles: ["STUDENT", "PROFESSOR", "ADMIN", "SUPERADMIN"],
+        },
+        {
+            title: "Equipment",
+            href: "/dashboard/equipment",
+            icon: Boxes,
+            roles: ["STUDENT", "PROFESSOR"],
         },
         {
             title: "My Activity",
