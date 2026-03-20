@@ -44,7 +44,7 @@ export function BorrowFormWizard({
     const [isGroup, setIsGroup] = useState(false)
     const [groupMembers, setGroupMembers] = useState<GroupMember[]>([{ name: "", schoolId: "" }])
 
-    // Individual identity (student only)
+    // Identity fields — required for both students AND professors on individual requests
     const [studentName, setStudentName] = useState(userName || "")
     const [studentSchoolId, setStudentSchoolId] = useState(userSchoolId || "")
 
@@ -83,10 +83,9 @@ export function BorrowFormWizard({
         setGroupMembers(newMembers)
     }
 
-    // Validation for step 2
     const isStep2Valid = () => {
         if (!roomNumber.trim()) return false
-        if (isProfessor) return true
+        // Both students and professors must fill in identity for individual (non-group) requests
         if (!isGroup) {
             return studentName.trim() !== "" && studentSchoolId.trim() !== ""
         }
@@ -103,8 +102,8 @@ export function BorrowFormWizard({
                 roomNumber,
                 isGroup,
                 groupMembers: isGroup ? groupMembers : [],
-                studentName: !isProfessor && !isGroup ? studentName : undefined,
-                studentSchoolId: !isProfessor && !isGroup ? studentSchoolId : undefined,
+                studentName: !isGroup ? studentName : undefined,
+                studentSchoolId: !isGroup ? studentSchoolId : undefined,
             })
 
             if (!res.success) {
@@ -254,8 +253,8 @@ export function BorrowFormWizard({
                             />
                         </div>
 
-                        {/* Individual identity fields — shown only for non-professor students */}
-                        {!isProfessor && !isGroup && (
+                        {/* Identity fields — shown for both students and professors on individual requests */}
+                        {!isGroup && (
                             <div className="space-y-4 p-4 bg-[#004f32]/5 rounded-xl border border-[#004f32]/10">
                                 <h4 className="text-sm font-semibold text-gray-700">
                                     Your Identity{" "}

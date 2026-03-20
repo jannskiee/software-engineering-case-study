@@ -37,8 +37,8 @@ export async function submitBorrowRequest(data: BorrowInput) {
         throw new Error("Group borrows require at least one member")
     }
 
-    // Validate individual request identity fields for students
-    if (role === "STUDENT" && !data.isGroup) {
+    // Validate individual request identity fields for students AND professors
+    if (!data.isGroup) {
         if (!data.studentName || !data.studentSchoolId) {
             throw new Error("Name and School ID are required for individual requests")
         }
@@ -99,8 +99,8 @@ export async function submitBorrowRequest(data: BorrowInput) {
                     roomNumber: data.roomNumber,
                     status: "PENDING",
                     isGroup: data.isGroup,
-                    studentName: role === "PROFESSOR" ? userName : (data.studentName || userName),
-                    studentSchoolId: role === "PROFESSOR" ? null : (data.studentSchoolId || null),
+                    studentName: data.studentName || userName,
+                    studentSchoolId: data.studentSchoolId || null,
 
                     ...(role === "PROFESSOR" ? { status: "APPROVED", professorId: userId } : {}),
 

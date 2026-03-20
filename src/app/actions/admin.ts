@@ -43,7 +43,11 @@ export async function getReturnQueue() {
     })
 }
 
-export async function dispenseRequest(requestId: string) {
+export async function dispenseRequest(
+    requestId: string,
+    dispatchedToName: string,
+    dispatchedToId: string
+) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
 
@@ -52,8 +56,12 @@ export async function dispenseRequest(requestId: string) {
     const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized role")
 
+    if (!dispatchedToName?.trim() || !dispatchedToId?.trim()) {
+        return { success: false, error: "Recipient name and ID number are required before dispensing." }
+    }
+
     try {
-        const result = await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
                 include: {
@@ -68,9 +76,13 @@ export async function dispenseRequest(requestId: string) {
             if (request.status !== "APPROVED")
                 throw new Error(`Cannot dispense. Status is ${request.status}`)
 
-            const updated = await tx.borrowRequest.update({
+            await tx.borrowRequest.update({
                 where: { id: requestId },
-                data: { status: "DISPENSED" },
+                data: {
+                    status: "DISPENSED",
+                    dispatchedToName: dispatchedToName.trim(),
+                    dispatchedToId: dispatchedToId.trim(),
+                },
             })
 
             const itemsSummary = request.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
@@ -84,15 +96,13 @@ export async function dispenseRequest(requestId: string) {
                     actorRole: role,
                     action: "REQUEST_STATUS_DISPENSED",
                     entityId: requestId,
-                    details: `${role} ${adminName} physically dispensed items to ${requesterName} (${requesterSchoolId}). Items: ${itemsSummary}. Room: ${request.roomNumber}. Approved by: ${approverName}.`,
+                    details: `${role} ${adminName} physically dispensed items to ${dispatchedToName.trim()} (ID: ${dispatchedToId.trim()}). Requester on file: ${requesterName} (${requesterSchoolId}). Items: ${itemsSummary}. Room: ${request.roomNumber}. Approved by: ${approverName}.`,
                 },
             })
-
-            return updated
         })
 
         revalidatePath("/dashboard")
-        return { success: true, result }
+        return { success: true }
     } catch (error: any) {
         console.error("Dispense Transaction Failed:", error)
         return { success: false, error: error.message || "Dispense Failed" }
@@ -109,7 +119,7 @@ export async function rejectRequest(requestId: string, reason: string) {
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized")
 
     try {
-        const result = await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             const existing = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
                 include: {
@@ -132,7 +142,7 @@ export async function rejectRequest(requestId: string, reason: string) {
                 }
             }
 
-            const req = await tx.borrowRequest.update({
+            await tx.borrowRequest.update({
                 where: { id: requestId },
                 data: { status: "REJECTED" },
             })
@@ -144,21 +154,24 @@ export async function rejectRequest(requestId: string, reason: string) {
                 data: {
                     actorId: adminId,
                     actorRole: role,
-                    action: `REQUEST_STATUS_REJECTED`,
+                    action: "REQUEST_STATUS_REJECTED",
                     entityId: requestId,
                     details: `${role} ${adminName} rejected request from ${requesterName}. Items: ${itemsSummary}. Rejection reason: ${reason}. Stock restored (if applicable).`,
                 },
             })
-            return req
         })
         revalidatePath("/dashboard")
-        return { success: true, result }
+        return { success: true }
     } catch (error: any) {
         return { success: false, error: error.message }
     }
 }
 
-export async function returnRequest(requestId: string) {
+export async function returnRequest(
+    requestId: string,
+    returnedByName: string,
+    returnedById: string
+) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) throw new Error("Unauthorized")
 
@@ -167,8 +180,12 @@ export async function returnRequest(requestId: string) {
     const role = (session.user as any).role as string
     if (role !== "ADMIN" && role !== "SUPERADMIN") throw new Error("Unauthorized")
 
+    if (!returnedByName?.trim() || !returnedById?.trim()) {
+        return { success: false, error: "Returner name and ID number are required before processing return." }
+    }
+
     try {
-        const result = await db.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
             const request = await tx.borrowRequest.findUnique({
                 where: { id: requestId },
                 include: {
@@ -186,9 +203,13 @@ export async function returnRequest(requestId: string) {
                 })
             }
 
-            const updated = await tx.borrowRequest.update({
+            await tx.borrowRequest.update({
                 where: { id: requestId },
-                data: { status: "RETURNED" },
+                data: {
+                    status: "RETURNED",
+                    returnedByName: returnedByName.trim(),
+                    returnedById: returnedById.trim(),
+                },
             })
 
             const itemsSummary = request.items.map((i) => `${i.item?.name} x${i.quantity}`).join(", ")
@@ -200,13 +221,12 @@ export async function returnRequest(requestId: string) {
                     actorRole: role,
                     action: "REQUEST_STATUS_RETURNED",
                     entityId: requestId,
-                    details: `${role} ${adminName} confirmed physical return of items from ${requesterName}. Items returned to inventory: ${itemsSummary}. Inventory stock restored.`,
+                    details: `${role} ${adminName} confirmed physical return from ${returnedByName.trim()} (ID: ${returnedById.trim()}). Requester on file: ${requesterName}. Items returned to inventory: ${itemsSummary}. Inventory stock restored.`,
                 },
             })
-            return updated
         })
         revalidatePath("/dashboard")
-        return { success: true, result }
+        return { success: true }
     } catch (error: any) {
         return { success: false, error: error.message }
     }

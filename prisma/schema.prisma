@@ -114,6 +114,14 @@ model BorrowRequest {
   studentName      String?   // Captured at request time
   studentSchoolId  String?   // Captured at request time
 
+  // Dispensing identity — who physically received the equipment from admin
+  dispatchedToName String?   // Captured at dispense time
+  dispatchedToId   String?   // Captured at dispense time
+
+  // Return identity — who physically returned the equipment to admin
+  returnedByName   String?   // Captured at return time
+  returnedById     String?   // Captured at return time
+
   // Details
   groupMembers  GroupMember[]
   items         BorrowRequestItem[]
